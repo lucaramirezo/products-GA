@@ -1,16 +1,26 @@
 "use server";
 import { PricingService } from '@/services/pricingService';
 import { buildInMemoryServices } from '@/services/serviceContainer';
+import { buildDbServices } from '@/services/dbServiceContainer';
 import { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
 
 // Temporary singleton (until DB wiring). In real scenario move to a proper server init module.
-let _pricing: PricingService | null = null;
+let _pricingPromise: Promise<PricingService> | null = null;
 function ensurePricing(){
-  if(_pricing) return _pricing;
-  const seed = seedData();
-  const container = buildInMemoryServices(seed);
-  _pricing = container.services.pricing;
-  return _pricing;
+  if(_pricingPromise) return _pricingPromise;
+  if(process.env.DATABASE_URL){
+    _pricingPromise = (async ()=>{
+      const dbContainer = await buildDbServices();
+      return dbContainer.services.pricing as PricingService;
+    })();
+  } else {
+    _pricingPromise = (async () => {
+      const seed = seedData();
+      const container = buildInMemoryServices(seed);
+      return container.services.pricing as PricingService;
+    })();
+  }
+  return _pricingPromise;
 }
 
 function seedData(){
@@ -38,6 +48,6 @@ function seedData(){
 
 export async function computePriceAction(input:{ sku:string; ink?:boolean; lam?:boolean; cut?:boolean; sheets?:number; }){
   const { sku, ink=true, lam=false, cut=false, sheets } = input;
-  const pricing = ensurePricing();
+  const pricing = await ensurePricing();
   return pricing.getPriceBySku(sku, { ink, lam, cut, sheets });
 }

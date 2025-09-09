@@ -37,4 +37,4 @@ export interface AuditRepo {
   latest(limit:number):Promise<AuditEntry[]>;
 }
 
-export interface AuditEntry { entity:string; id:string; field:string; before:any; after:any; date:string; user:string; }
+export interface AuditEntry { entity:string; id:string; field:string; before:unknown; after:unknown; date:string; user:string; }
