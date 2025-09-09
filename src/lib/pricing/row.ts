@@ -20,13 +20,13 @@ export function buildPricedProductRow(args:{ product:Product; tiers:Tier[]; para
   const activeTier = tiers.find(t=>t.id===product.active_tier);
   if(!activeTier) throw new Error('Active tier not found');
   const toggles = { ink: !!product.ink_enabled, lam: !!product.lam_enabled, cut: !!product.cut_enabled };
-  const breakdown = computePrice({ product: product as any, tier: activeTier as any, params: params as any, categoryRule: categoryRule as any, toggles });
+  const breakdown = computePrice({ product, tier: activeTier, params, categoryRule, toggles });
   let override:PricedProductRow['override'] = null;
   if(breakdown.effective.sources.some(s=>s==='product.mult') || breakdown.effective.sources.some(s=>s==='category.mult')){
     const isProduct = breakdown.effective.sources.includes('product.mult');
     override = { mult: breakdown.effective.mult, ink_factor: breakdown.effective.ink_factor, source: isProduct ? 'product' : 'category' };
   }
-  const tiersPreview = tiers.map(t=>({ tier: t.id, final: computePrice({ product: product as any, tier: t as any, params: params as any, categoryRule: categoryRule as any, toggles }).final }));
+  const tiersPreview = tiers.map(t=>({ tier: t.id, final: computePrice({ product, tier: t, params, categoryRule, toggles }).final }));
   const finalSource = override ? (override.source==='product' ? 'Override producto' : 'Override categoría') : `Tier ${product.active_tier}`;
   const finalPrice = breakdown.final;
   const pvp_raw = breakdown.base_total + breakdown.addons_total;
