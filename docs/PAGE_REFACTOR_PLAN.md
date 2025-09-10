@@ -23,26 +23,26 @@
 - [x] Extract shared UI components (TabButton, Th, Td, KPI, Field, ParamInput, AddCategoryForm)
 
 ### Phase 3: Server Component Migration ✅
-- [ ] Convert `page.tsx` to server component
-- [ ] Wire up `getInitialData()` call
-- [ ] Mount `ProductsAppClient` with initial data
+- [x] Convert `page.tsx` to server component
+- [x] Wire up `getInitialData()` call
+- [x] Mount `ProductsAppClient` with initial data
 
 ### Phase 4: State Migration ✅
-- [ ] Replace `products` mock state with DB queries/actions
-- [ ] Replace `tiers` mock state with DB queries/actions
-- [ ] Replace `params` mock state with DB queries/actions
-- [ ] Replace `categoryRules` mock state with DB queries/actions
-- [ ] Replace `providers` mock state with DB queries/actions
-- [ ] Replace `audit` mock state with DB queries/actions
+- [x] Replace `products` mock state with DB queries/actions
+- [x] Replace `tiers` mock state with DB queries/actions
+- [x] Replace `params` mock state with DB queries/actions
+- [x] Replace `categoryRules` mock state with DB queries/actions
+- [x] Replace `providers` mock state with DB queries/actions
+- [x] Replace `audit` mock state with DB queries/actions
 
 ### Phase 5: Integration & Testing ✅
-- [ ] Test pricing engine parity
-- [ ] Test CSV export functionality
-- [ ] Test reports functionality
-- [ ] Test editing workflows
-- [ ] Test audit logging
-- [ ] Test cache invalidation
-- [ ] Full build and runtime verification
+- [x] Test pricing engine parity
+- [x] Test CSV export functionality
+- [x] Test reports functionality
+- [x] Test editing workflows
+- [x] Test audit logging
+- [x] Test cache invalidation
+- [x] Full build and runtime verification
 
 ## 1. Goal
 Refactor the current monolithic `page.tsx` (all state in React) to:
