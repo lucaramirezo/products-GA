@@ -1,16 +1,13 @@
 "use server";
 
-import { createDbClient } from '@/db/client';
+import { getDb } from '@/db/client';
 import { tiers, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Tier } from '@/lib/pricing/types';
 
 export async function updateTier(id: number, patch: Partial<Tier>): Promise<Tier> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current tier for audit
     const [currentTier] = await db.select().from(tiers).where(eq(tiers.id, id));
@@ -64,17 +61,10 @@ export async function updateTier(id: number, patch: Partial<Tier>): Promise<Tier
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
 
 export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     const results = [];
     
@@ -117,10 +107,6 @@ export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
 
     revalidatePath('/');
     return results;
-
-  } finally {
-    await client.end();
-  }
 }
 
 // Field mapping for audit trail

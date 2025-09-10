@@ -1,16 +1,13 @@
 "use server";
 
-import { createDbClient } from '@/db/client';
+import { getDb } from '@/db/client';
 import { priceParams, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { PriceParams } from '@/lib/pricing/types';
 
 export async function updateParams(patch: Partial<PriceParams>): Promise<PriceParams> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current params for audit (singleton record with id=1)
     const [currentParams] = await db.select().from(priceParams).where(eq(priceParams.id, 1));
@@ -88,10 +85,6 @@ export async function updateParams(patch: Partial<PriceParams>): Promise<PricePa
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
 
 // Field mapping for audit trail

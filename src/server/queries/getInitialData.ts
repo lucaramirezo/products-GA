@@ -1,4 +1,4 @@
-import { createDbClient } from '@/db/client';
+import { getDb } from '@/db/client';
 import { products, tiers, priceParams, categoryRules, providers, auditLog } from '@/db/schema';
 import { desc, isNull } from 'drizzle-orm';
 import type { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
@@ -29,11 +29,9 @@ export type InitialData = {
 };
 
 export async function getInitialData(): Promise<InitialData> {
-  const { client, db } = createDbClient();
+  const db = getDb();
   
   try {
-    await client.connect();
-    
     const [
       productsData,
       tiersData,
@@ -140,7 +138,6 @@ export async function getInitialData(): Promise<InitialData> {
       providers: transformedProviders,
       auditLog: transformedAudit
     };
-
   } catch (error) {
     console.error('Error fetching initial data:', error);
     
@@ -167,7 +164,5 @@ export async function getInitialData(): Promise<InitialData> {
       providers: [],
       auditLog: []
     };
-  } finally {
-    await client.end();
   }
 }

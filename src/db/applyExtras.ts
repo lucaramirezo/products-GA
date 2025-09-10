@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

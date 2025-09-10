@@ -1,16 +1,13 @@
 "use server";
 
-import { createDbClient } from '@/db/client';
+import { getDb } from '@/db/client';
 import { providers, products, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Provider } from '@/server/queries/getInitialData';
 
 export async function updateProvider(id: string, patch: Partial<Provider>): Promise<Provider> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current provider for audit
     const [currentProvider] = await db.select().from(providers).where(eq(providers.id, id));
@@ -61,17 +58,10 @@ export async function updateProvider(id: string, patch: Partial<Provider>): Prom
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
 
 export async function simulateImport(providerId: string): Promise<{ provider: Provider; affectedProducts: number }> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current provider
     const [currentProvider] = await db.select().from(providers).where(eq(providers.id, providerId));
@@ -150,17 +140,10 @@ export async function simulateImport(providerId: string): Promise<{ provider: Pr
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
 
 export async function createProvider(provider: Omit<Provider, 'id'>): Promise<Provider> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     const insertData = {
       name: provider.name,
@@ -187,8 +170,4 @@ export async function createProvider(provider: Omit<Provider, 'id'>): Promise<Pr
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
