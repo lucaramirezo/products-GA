@@ -1,40 +1,54 @@
 "use server";
 
-import { createDbClient } from '@/db/client';
+import { getDb } from '@/db/client';
 import { categoryRules, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { CategoryRule } from '@/lib/pricing/types';
 
 export async function upsertCategoryRule(rule: CategoryRule): Promise<CategoryRule> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current rule for audit
     const [currentRule] = await db.select().from(categoryRules).where(eq(categoryRules.category, rule.category));
 
     const insertData = {
       category: rule.category,
-      minPvp: rule.min_pvp?.toString(),
-      overrideMultiplier: rule.override_multiplier?.toString(),
-      overrideInkFactor: rule.override_ink_factor
+      minPvp: rule.min_pvp?.toString() || null,
+      overrideMultiplier: rule.override_multiplier?.toString() || null,
+      overrideInkFactor: rule.override_ink_factor ?? null
     };
 
-    // Use upsert pattern (insert with conflict resolution)
-    const [upsertedRule] = await db
-      .insert(categoryRules)
-      .values(insertData)
-      .onConflictDoUpdate({
-        target: categoryRules.category,
-        set: {
-          minPvp: insertData.minPvp,
-          overrideMultiplier: insertData.overrideMultiplier,
-          overrideInkFactor: insertData.overrideInkFactor
-        }
-      })
-      .returning();
+    // Build update data only with non-null values
+    const updateData: Record<string, string | number | null> = {};
+    if (insertData.minPvp !== null) updateData.minPvp = insertData.minPvp;
+    if (insertData.overrideMultiplier !== null) updateData.overrideMultiplier = insertData.overrideMultiplier;
+    if (insertData.overrideInkFactor !== null) updateData.overrideInkFactor = insertData.overrideInkFactor;
+
+    let upsertedRule;
+    
+    if (Object.keys(updateData).length === 0) {
+      // If no update data, just insert or do nothing
+      try {
+        [upsertedRule] = await db
+          .insert(categoryRules)
+          .values(insertData)
+          .returning();
+      } catch (error) {
+        // If already exists and nothing to update, just return existing
+        [upsertedRule] = await db.select().from(categoryRules).where(eq(categoryRules.category, rule.category));
+      }
+    } else {
+      // Use upsert pattern (insert with conflict resolution)
+      [upsertedRule] = await db
+        .insert(categoryRules)
+        .values(insertData)
+        .onConflictDoUpdate({
+          target: categoryRules.category,
+          set: updateData
+        })
+        .returning();
+    }
 
     // Create audit entries for changed fields
     const auditEntries = [];
@@ -71,17 +85,10 @@ export async function upsertCategoryRule(rule: CategoryRule): Promise<CategoryRu
 
     revalidatePath('/');
     return result;
-
-  } finally {
-    await client.end();
-  }
 }
 
 export async function deleteCategoryRule(category: string): Promise<void> {
-  const { client, db } = createDbClient();
-  
-  try {
-    await client.connect();
+  const db = getDb();
 
     // Get current rule for audit
     const [currentRule] = await db.select().from(categoryRules).where(eq(categoryRules.category, category));
@@ -99,10 +106,6 @@ export async function deleteCategoryRule(category: string): Promise<void> {
     });
 
     revalidatePath('/');
-
-  } finally {
-    await client.end();
-  }
 }
 
 // Field mapping for audit trail

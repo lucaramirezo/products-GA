@@ -1,15 +1,15 @@
 "use server";
 
-import { createDbClient } from '@/db/client';
+import { getDb, getPool } from '@/db/client';
 import { products, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Product } from '@/lib/pricing/types';
 
-// Optimized version - uses connection pooling, no manual connect/disconnect
+// Optimized version - uses single pooled DB connection
 
 export async function updateProduct(sku: string, patch: Partial<Product>): Promise<Product> {
-  const { db } = createDbClient();
+  const db = getDb();
 
   // Get current product for audit
   const [currentProduct] = await db.select().from(products).where(eq(products.sku, sku));
@@ -110,10 +110,22 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
 }
 
 export async function createProduct(product: Product): Promise<Product> {
-  const { db } = createDbClient();
+  const db = getDb();
   
+  // Auto-generate SKU if it's a placeholder (NEW-xxx) or missing
+  const shouldAutoGenerate = !product.sku || product.sku.startsWith('NEW-');
+  
+  let finalSku = product.sku;
+  
+  if (shouldAutoGenerate) {
+    // Generate SKU using the sequence - use pool for raw SQL
+    const pool = getPool();
+    const result = await pool.query(`SELECT 'SKU-' || lpad(nextval('sku_seq')::text, 3, '0') as sku`);
+    finalSku = result.rows[0].sku;
+  }
+
   const insertData = {
-    sku: product.sku,
+    sku: finalSku,
     name: product.name,
     category: product.category,
     providerId: product.providerId,
@@ -166,7 +178,7 @@ export async function createProduct(product: Product): Promise<Product> {
 }
 
 export async function softDeleteProduct(sku: string): Promise<void> {
-  const { db } = createDbClient();
+  const db = getDb();
   
   await db
     .update(products)

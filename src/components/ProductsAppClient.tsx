@@ -106,8 +106,8 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
     try {
       const created = await createProduct(newP);
       setProducts(prev => [created, ...prev]);
-      setEditProduct(sku);
-      logChange("product", sku, "create", undefined, JSON.stringify(newP));
+      setEditProduct(created.sku); // Use the actual generated SKU
+      logChange("product", created.sku, "create", undefined, JSON.stringify(created));
     } catch (error) {
       console.error('Failed to create product:', error);
     }
