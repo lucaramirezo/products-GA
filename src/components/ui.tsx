@@ -1,4 +1,5 @@
 import React from 'react';
+import { CommitNumberInput } from './CommitInputs';
 
 interface TabButtonProps {
   active: boolean;
@@ -88,11 +89,11 @@ export function ParamInput({ label, value, onChange, step = 0.01 }: ParamInputPr
   return (
     <label className="text-xs font-medium text-slate-600 space-y-1">
       <span>{label}</span>
-      <input
-        type="number"
-        step={step}
+      <CommitNumberInput
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onCommit={(newValue) => onChange(newValue || 0)}
+        step={step}
+        min={0}
         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
       />
     </label>

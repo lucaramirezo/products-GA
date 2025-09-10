@@ -101,6 +101,49 @@ NODE_ENV=development
 6. Añadir pruebas de integración (PricingService + DB)
 7. Añadir rollback docs (`pg_dump` y revert de migraciones)
 
+### 8.1 Estado Actual de Implementación
+
+Archivos añadidos:
+
+* `drizzle.config.ts` (configuración de migraciones)
+* `src/db/schema.ts` (tablas principales)
+* `src/db/seed.ts` (semilla inicial dentro de transacción)
+* `src/db/client.ts` (helper de conexión)
+* `src/services/auditLogger.ts` (servicio preliminar de auditoría)
+* `.env.example` (plantilla de variables)
+
+Scripts en `package.json`:
+
+* `db:generate` → genera migraciones a partir del esquema
+* `db:migrate` → aplica migraciones
+* `db:seed` → ejecuta semilla
+* `db:studio` → abre Drizzle Studio
+
+Pasos para inicializar local:
+
+```powershell
+copy .env.example .env
+# Editar credenciales
+npm install
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
+
+Backup & restore rápido (PowerShell):
+
+```powershell
+pg_dump $Env:DATABASE_URL -Fc -f backup.dump
+pg_restore -c -d $Env:DATABASE_URL backup.dump
+```
+
+Pendiente aún:
+
+* Vista materializada / view `active_products` via migración raw
+* Índices de texto (search) opcionales
+* Repos Drizzle concretos que implementen interfaces actuales
+* Tests de integración sobre DB
+
 ## 9. Testing
 
 * Tests unitarios: sólo motor / lógica de precedencia y cálculo

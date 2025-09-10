@@ -3,6 +3,7 @@ import type { Product } from '@/lib/pricing/types';
 import type { AuditEntry } from '@/server/queries/getInitialData';
 import { buildPricedProductRow } from '@/lib/pricing/row';
 import { Th, Td } from './ui';
+import { CommitNumberInput } from './CommitInputs';
 
 // const CURRENCY = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
@@ -210,11 +211,12 @@ function ProductRow({ row, onEditProduct, onUpdateProduct, providerName, tiers }
       </Td>
       <Td className="text-center">{(row.product.min_pvp ?? 0).toFixed(2)}</Td>
       <Td className="text-center">
-        <input
-          type="number"
-          className="w-16 border rounded px-1 py-0.5 text-[11px]"
+        <CommitNumberInput
           value={row.product.area_sqft}
-          onChange={(e) => onUpdateProduct(row.product.sku, { area_sqft: Math.max(0.01, Number(e.target.value)) })}
+          onCommit={(newValue) => onUpdateProduct(row.product.sku, { area_sqft: Math.max(0.01, newValue || 0.01) })}
+          step={0.01}
+          min={0.01}
+          className="w-16 border rounded px-1 py-0.5 text-[11px]"
         />
       </Td>
       <Td>

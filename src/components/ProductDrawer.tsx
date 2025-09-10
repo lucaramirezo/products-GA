@@ -3,6 +3,7 @@ import type { Product, Tier, CategoryRule } from '@/lib/pricing/types';
 import type { Provider } from '@/server/queries/getInitialData';
 import { buildPricedProductRow } from '@/lib/pricing/row';
 import { Field } from './ui';
+import { CommitTextInput, CommitNumberInput } from './CommitInputs';
 
 const CURRENCY = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
@@ -41,10 +42,9 @@ export function ProductDrawer({
           </Field>
           
           <Field label="Nombre">
-            <input
-              className="w-full rounded border border-slate-300 px-3 py-2"
+            <CommitTextInput
               value={product.name}
-              onChange={(e) => onUpdate(product.sku, { name: e.target.value })}
+              onCommit={(newValue) => onUpdate(product.sku, { name: newValue })}
             />
           </Field>
           
@@ -73,22 +73,22 @@ export function ProductDrawer({
           </Field>
           
           <Field label="Cost (ft²)">
-            <input
-              type="number"
-              step={0.01}
-              className="w-32 rounded border border-slate-300 px-3 py-2"
+            <CommitNumberInput
               value={product.cost_sqft}
-              onChange={(e) => onUpdate(product.sku, { cost_sqft: Number(e.target.value) })}
+              onCommit={(newValue) => onUpdate(product.sku, { cost_sqft: newValue || 0 })}
+              step={0.01}
+              min={0}
+              className="w-32 rounded border border-slate-300 px-3 py-2"
             />
           </Field>
           
           <Field label="Area (ft²)">
-            <input
-              type="number"
-              step={0.01}
-              className="w-32 rounded border border-slate-300 px-3 py-2"
+            <CommitNumberInput
               value={product.area_sqft}
-              onChange={(e) => onUpdate(product.sku, { area_sqft: Math.max(0.01, Number(e.target.value)) })}
+              onCommit={(newValue) => onUpdate(product.sku, { area_sqft: Math.max(0.01, newValue || 0.01) })}
+              step={0.01}
+              min={0.01}
+              className="w-32 rounded border border-slate-300 px-3 py-2"
             />
           </Field>
           
@@ -105,16 +105,12 @@ export function ProductDrawer({
           </Field>
           
           <Field label="Min PVP">
-            <input
-              type="number"
+            <CommitNumberInput
+              value={product.min_pvp}
+              onCommit={(newValue) => onUpdate(product.sku, { min_pvp: newValue || undefined })}
               step={0.1}
+              min={0}
               className="w-32 rounded border border-slate-300 px-3 py-2"
-              value={product.min_pvp ?? 0}
-              onChange={(e) =>
-                onUpdate(product.sku, {
-                  min_pvp: Number(e.target.value) || undefined,
-                })
-              }
             />
           </Field>
           
@@ -144,29 +140,21 @@ export function ProductDrawer({
           
           <div className="grid grid-cols-2 gap-4">
             <Field label="Override Mult">
-              <input
-                type="number"
+              <CommitNumberInput
+                value={product.override_multiplier}
+                onCommit={(newValue) => onUpdate(product.sku, { override_multiplier: newValue || undefined })}
                 step={0.1}
+                min={0}
                 className="w-full rounded border border-slate-300 px-3 py-2"
-                value={product.override_multiplier ?? ""}
-                onChange={(e) =>
-                  onUpdate(product.sku, {
-                    override_multiplier: e.target.value ? Number(e.target.value) : undefined,
-                  })
-                }
               />
             </Field>
             <Field label="Override Ink×">
-              <input
-                type="number"
+              <CommitNumberInput
+                value={product.override_ink_factor}
+                onCommit={(newValue) => onUpdate(product.sku, { override_ink_factor: newValue || undefined })}
                 step={1}
+                min={0}
                 className="w-full rounded border border-slate-300 px-3 py-2"
-                value={product.override_ink_factor ?? ""}
-                onChange={(e) =>
-                  onUpdate(product.sku, {
-                    override_ink_factor: e.target.value ? Number(e.target.value) : undefined,
-                  })
-                }
               />
             </Field>
           </div>

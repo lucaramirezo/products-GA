@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PriceParams, Tier, CategoryRule } from '@/lib/pricing/types';
 import { ParamInput, AddCategoryForm } from './ui';
+import { CommitNumberInput } from './CommitInputs';
 
 interface ParamsPanelProps {
   params: PriceParams;
@@ -95,21 +96,22 @@ export function ParamsPanel({
               <h4 className="font-semibold">Tier {t.id}</h4>
               <label className="block">
                 <span>Multiplier</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full rounded border border-slate-300 px-2 py-1 mt-1"
+                <CommitNumberInput
                   value={t.mult}
-                  onChange={(e) => onUpdateTier(t.id, { mult: Number(e.target.value) })}
+                  onCommit={(newValue) => onUpdateTier(t.id, { mult: newValue || 0 })}
+                  step={0.1}
+                  min={0}
+                  className="w-full rounded border border-slate-300 px-2 py-1 mt-1"
                 />
               </label>
               <label className="block">
                 <span>Ink Factor</span>
-                <input
-                  type="number"
-                  className="w-full rounded border border-slate-300 px-2 py-1 mt-1"
+                <CommitNumberInput
                   value={t.ink_factor}
-                  onChange={(e) => onUpdateTier(t.id, { ink_factor: Number(e.target.value) })}
+                  onCommit={(newValue) => onUpdateTier(t.id, { ink_factor: newValue || 0 })}
+                  step={1}
+                  min={0}
+                  className="w-full rounded border border-slate-300 px-2 py-1 mt-1"
                 />
               </label>
             </div>
@@ -126,29 +128,32 @@ export function ParamsPanel({
               <span className="font-semibold min-w-28">{r.category}</span>
               <label className="flex items-center gap-1">
                 <span>Min</span>
-                <input
-                  type="number"
+                <CommitNumberInput
+                  value={r.min_pvp}
+                  onCommit={(newValue) => handleCategoryRuleUpdate(r.category, 'min_pvp', newValue || undefined)}
+                  step={0.1}
+                  min={0}
                   className="w-20 rounded border border-slate-300 px-2 py-1"
-                  value={r.min_pvp ?? 0}
-                  onChange={(e) => handleCategoryRuleUpdate(r.category, 'min_pvp', Number(e.target.value))}
                 />
               </label>
               <label className="flex items-center gap-1">
                 <span>Ovr Mult</span>
-                <input
-                  type="number"
+                <CommitNumberInput
+                  value={r.override_multiplier}
+                  onCommit={(newValue) => handleCategoryRuleUpdate(r.category, 'override_multiplier', newValue || undefined)}
+                  step={0.1}
+                  min={0}
                   className="w-20 rounded border border-slate-300 px-2 py-1"
-                  value={r.override_multiplier ?? 0}
-                  onChange={(e) => handleCategoryRuleUpdate(r.category, 'override_multiplier', Number(e.target.value) || undefined)}
                 />
               </label>
               <label className="flex items-center gap-1">
                 <span>Ovr Ink×</span>
-                <input
-                  type="number"
+                <CommitNumberInput
+                  value={r.override_ink_factor}
+                  onCommit={(newValue) => handleCategoryRuleUpdate(r.category, 'override_ink_factor', newValue || undefined)}
+                  step={1}
+                  min={0}
                   className="w-16 rounded border border-slate-300 px-2 py-1"
-                  value={r.override_ink_factor ?? 0}
-                  onChange={(e) => handleCategoryRuleUpdate(r.category, 'override_ink_factor', Number(e.target.value) || undefined)}
                 />
               </label>
               <button

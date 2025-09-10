@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Tier } from '@/lib/pricing/types';
+import { CommitNumberInput } from './CommitInputs';
 
 interface TiersPanelProps {
   tiers: Tier[];
@@ -16,22 +17,22 @@ export function TiersPanel({ tiers, onUpdateTier }: TiersPanelProps) {
             <span className="font-semibold">Tier {t.id}</span>
             <label className="flex items-center gap-1">
               <span>Mult</span>
-              <input
-                type="number"
-                className="w-20 rounded border border-slate-300 px-2 py-1"
-                step={0.1}
+              <CommitNumberInput
                 value={t.mult}
-                onChange={(e) => onUpdateTier(t.id, { mult: Number(e.target.value) })}
+                onCommit={(newValue) => onUpdateTier(t.id, { mult: newValue || 0 })}
+                step={0.1}
+                min={0}
+                className="w-20 rounded border border-slate-300 px-2 py-1"
               />
             </label>
             <label className="flex items-center gap-1">
               <span>Ink×</span>
-              <input
-                type="number"
-                className="w-20 rounded border border-slate-300 px-2 py-1"
-                step={1}
+              <CommitNumberInput
                 value={t.ink_factor}
-                onChange={(e) => onUpdateTier(t.id, { ink_factor: Number(e.target.value) })}
+                onCommit={(newValue) => onUpdateTier(t.id, { ink_factor: newValue || 0 })}
+                step={1}
+                min={0}
+                className="w-20 rounded border border-slate-300 px-2 py-1"
               />
             </label>
           </div>
