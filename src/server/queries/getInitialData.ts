@@ -70,9 +70,8 @@ export async function getInitialData(): Promise<InitialData> {
       cost_sqft: Number(p.costSqft),
       area_sqft: Number(p.areaSqft),
       active_tier: p.activeTier,
-      min_pvp: p.minPvp ? Number(p.minPvp) : undefined,
       override_multiplier: p.overrideMultiplier ? Number(p.overrideMultiplier) : undefined,
-      override_ink_factor: p.overrideInkFactor ?? undefined,
+      override_number_of_layers: p.overrideNumberOfLayers ?? undefined,
       ink_enabled: p.inkEnabled,
       lam_enabled: p.lamEnabled,
       cut_enabled: p.cutEnabled,
@@ -83,7 +82,7 @@ export async function getInitialData(): Promise<InitialData> {
     const transformedTiers: Tier[] = tiersData.map((t: typeof tiers.$inferSelect) => ({
       id: t.id,
       mult: Number(t.mult),
-      ink_factor: t.inkFactor
+      number_of_layers: t.numberOfLayers
     }));
 
     // Handle case where no params exist yet (use defaults)
@@ -91,9 +90,7 @@ export async function getInitialData(): Promise<InitialData> {
       ink_price: 0.55,
       lamination_price: 0,
       cut_price: 0,
-      cut_unit: "per_sqft",
       rounding_step: 0.05,
-      min_pvp_global: 0,
       cost_method: "latest"
     };
 
@@ -101,17 +98,14 @@ export async function getInitialData(): Promise<InitialData> {
       ink_price: Number(paramsData[0].inkPrice),
       lamination_price: Number(paramsData[0].laminationPrice),
       cut_price: Number(paramsData[0].cutPrice),
-      cut_unit: paramsData[0].cutUnit as "per_sqft" | "per_sheet",
       rounding_step: Number(paramsData[0].roundingStep),
-      min_pvp_global: paramsData[0].minPvpGlobal ? Number(paramsData[0].minPvpGlobal) : 0,
       cost_method: paramsData[0].costMethod as "latest"
     } : defaultParams;
 
     const transformedCategoryRules: CategoryRule[] = categoryRulesData.map((r: typeof categoryRules.$inferSelect) => ({
       category: r.category,
-      min_pvp: r.minPvp ? Number(r.minPvp) : undefined,
       override_multiplier: r.overrideMultiplier ? Number(r.overrideMultiplier) : undefined,
-      override_ink_factor: r.overrideInkFactor ?? undefined
+      override_number_of_layers: r.overrideNumberOfLayers ?? undefined
     }));
 
     const transformedProviders: Provider[] = providersData.map((p: typeof providers.$inferSelect) => ({
@@ -145,19 +139,17 @@ export async function getInitialData(): Promise<InitialData> {
     return {
       products: [],
       tiers: [
-        { id: 1, mult: 3.5, ink_factor: 1 },
-        { id: 2, mult: 4.0, ink_factor: 1 },
-        { id: 3, mult: 4.3, ink_factor: 2 },
-        { id: 4, mult: 4.5, ink_factor: 2 },
-        { id: 5, mult: 5.0, ink_factor: 2 }
+        { id: 1, mult: 3.5, number_of_layers: 1 },
+        { id: 2, mult: 4.0, number_of_layers: 1 },
+        { id: 3, mult: 4.3, number_of_layers: 2 },
+        { id: 4, mult: 4.5, number_of_layers: 2 },
+        { id: 5, mult: 5.0, number_of_layers: 2 }
       ],
       params: {
         ink_price: 0.55,
         lamination_price: 0,
         cut_price: 0,
-        cut_unit: "per_sqft",
         rounding_step: 0.05,
-        min_pvp_global: 0,
         cost_method: "latest"
       },
       categoryRules: [],

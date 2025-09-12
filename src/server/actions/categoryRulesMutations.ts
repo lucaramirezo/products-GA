@@ -14,16 +14,14 @@ export async function upsertCategoryRule(rule: CategoryRule): Promise<CategoryRu
 
     const insertData = {
       category: rule.category,
-      minPvp: rule.min_pvp?.toString() || null,
       overrideMultiplier: rule.override_multiplier?.toString() || null,
-      overrideInkFactor: rule.override_ink_factor ?? null
+      overrideNumberOfLayers: rule.override_number_of_layers ?? null
     };
 
     // Build update data only with non-null values
     const updateData: Record<string, string | number | null> = {};
-    if (insertData.minPvp !== null) updateData.minPvp = insertData.minPvp;
     if (insertData.overrideMultiplier !== null) updateData.overrideMultiplier = insertData.overrideMultiplier;
-    if (insertData.overrideInkFactor !== null) updateData.overrideInkFactor = insertData.overrideInkFactor;
+    if (insertData.overrideNumberOfLayers !== null) updateData.overrideNumberOfLayers = insertData.overrideNumberOfLayers;
 
     let upsertedRule;
     
@@ -34,7 +32,7 @@ export async function upsertCategoryRule(rule: CategoryRule): Promise<CategoryRu
           .insert(categoryRules)
           .values(insertData)
           .returning();
-      } catch (error) {
+      } catch (_error) {
         // If already exists and nothing to update, just return existing
         [upsertedRule] = await db.select().from(categoryRules).where(eq(categoryRules.category, rule.category));
       }
@@ -78,9 +76,8 @@ export async function upsertCategoryRule(rule: CategoryRule): Promise<CategoryRu
     // Transform back to frontend type
     const result: CategoryRule = {
       category: upsertedRule.category,
-      min_pvp: upsertedRule.minPvp ? Number(upsertedRule.minPvp) : undefined,
       override_multiplier: upsertedRule.overrideMultiplier ? Number(upsertedRule.overrideMultiplier) : undefined,
-      override_ink_factor: upsertedRule.overrideInkFactor ?? undefined
+      override_number_of_layers: upsertedRule.overrideNumberOfLayers ?? undefined
     };
 
     revalidatePath('/');
@@ -111,7 +108,6 @@ export async function deleteCategoryRule(category: string): Promise<void> {
 // Field mapping for audit trail
 const fieldMap: Partial<Record<keyof CategoryRule, string>> = {
   category: 'category',
-  min_pvp: 'minPvp',
   override_multiplier: 'overrideMultiplier',
-  override_ink_factor: 'overrideInkFactor'
+  override_number_of_layers: 'overrideNumberOfLayers'
 };

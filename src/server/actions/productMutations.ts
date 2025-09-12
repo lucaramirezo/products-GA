@@ -27,9 +27,8 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
   if (patch.cost_sqft !== undefined) updateData.costSqft = patch.cost_sqft.toString();
   if (patch.area_sqft !== undefined) updateData.areaSqft = patch.area_sqft.toString();
   if (patch.active_tier !== undefined) updateData.activeTier = patch.active_tier;
-  if (patch.min_pvp !== undefined) updateData.minPvp = patch.min_pvp ? patch.min_pvp.toString() : null;
   if (patch.override_multiplier !== undefined) updateData.overrideMultiplier = patch.override_multiplier ? patch.override_multiplier.toString() : null;
-  if (patch.override_ink_factor !== undefined) updateData.overrideInkFactor = patch.override_ink_factor;
+  if (patch.override_number_of_layers !== undefined) updateData.overrideNumberOfLayers = patch.override_number_of_layers;
   if (patch.ink_enabled !== undefined) updateData.inkEnabled = patch.ink_enabled;
   if (patch.lam_enabled !== undefined) updateData.lamEnabled = patch.lam_enabled;
   if (patch.cut_enabled !== undefined) updateData.cutEnabled = patch.cut_enabled;
@@ -45,9 +44,8 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     cost_sqft: 'costSqft',
     area_sqft: 'areaSqft',
     active_tier: 'activeTier',
-    min_pvp: 'minPvp',
     override_multiplier: 'overrideMultiplier',
-    override_ink_factor: 'overrideInkFactor',
+    override_number_of_layers: 'overrideNumberOfLayers',
     ink_enabled: 'inkEnabled',
     lam_enabled: 'lamEnabled',
     cut_enabled: 'cutEnabled',
@@ -95,9 +93,8 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     cost_sqft: parseFloat(updatedProduct.costSqft || '0'),
     area_sqft: parseFloat(updatedProduct.areaSqft || '0'),
     active_tier: updatedProduct.activeTier,
-    min_pvp: updatedProduct.minPvp ? parseFloat(updatedProduct.minPvp) : undefined,
     override_multiplier: updatedProduct.overrideMultiplier ? parseFloat(updatedProduct.overrideMultiplier) : undefined,
-    override_ink_factor: updatedProduct.overrideInkFactor ?? undefined,
+    override_number_of_layers: updatedProduct.overrideNumberOfLayers ?? undefined,
     ink_enabled: updatedProduct.inkEnabled,
     lam_enabled: updatedProduct.lamEnabled,
     cut_enabled: updatedProduct.cutEnabled,
@@ -132,9 +129,8 @@ export async function createProduct(product: Product): Promise<Product> {
     costSqft: product.cost_sqft.toString(),
     areaSqft: product.area_sqft.toString(),
     activeTier: product.active_tier,
-    minPvp: product.min_pvp?.toString(),
     overrideMultiplier: product.override_multiplier?.toString(),
-    overrideInkFactor: product.override_ink_factor,
+    overrideNumberOfLayers: product.override_number_of_layers,
     inkEnabled: product.ink_enabled,
     lamEnabled: product.lam_enabled,
     cutEnabled: product.cut_enabled,
@@ -163,9 +159,8 @@ export async function createProduct(product: Product): Promise<Product> {
     cost_sqft: parseFloat(newProduct.costSqft || '0'),
     area_sqft: parseFloat(newProduct.areaSqft || '0'),
     active_tier: newProduct.activeTier,
-    min_pvp: newProduct.minPvp ? parseFloat(newProduct.minPvp) : undefined,
     override_multiplier: newProduct.overrideMultiplier ? parseFloat(newProduct.overrideMultiplier) : undefined,
-    override_ink_factor: newProduct.overrideInkFactor ?? undefined,
+    override_number_of_layers: newProduct.overrideNumberOfLayers ?? undefined,
     ink_enabled: newProduct.inkEnabled,
     lam_enabled: newProduct.lamEnabled,
     cut_enabled: newProduct.cutEnabled,

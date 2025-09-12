@@ -20,7 +20,7 @@ export async function updateTier(id: number, patch: Partial<Tier>): Promise<Tier
     const updateData: Record<string, string | number | boolean | Date | null | undefined> = {};
     
     if (patch.mult !== undefined) updateData.mult = patch.mult.toString();
-    if (patch.ink_factor !== undefined) updateData.inkFactor = patch.ink_factor;
+    if (patch.number_of_layers !== undefined) updateData.numberOfLayers = patch.number_of_layers;
 
     // Update the tier
     const [updatedTier] = await db
@@ -56,7 +56,7 @@ export async function updateTier(id: number, patch: Partial<Tier>): Promise<Tier
     const result: Tier = {
       id: updatedTier.id,
       mult: Number(updatedTier.mult),
-      ink_factor: updatedTier.inkFactor
+      number_of_layers: updatedTier.numberOfLayers
     };
 
     revalidatePath('/');
@@ -72,7 +72,7 @@ export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
       const insertData = {
         id: tier.id,
         mult: tier.mult.toString(),
-        inkFactor: tier.ink_factor
+        numberOfLayers: tier.number_of_layers
       };
 
       // Use upsert pattern (insert with conflict resolution)
@@ -83,7 +83,7 @@ export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
           target: tiers.id,
           set: {
             mult: insertData.mult,
-            inkFactor: insertData.inkFactor
+            numberOfLayers: insertData.numberOfLayers
           }
         })
         .returning();
@@ -91,7 +91,7 @@ export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
       results.push({
         id: upsertedTier.id,
         mult: Number(upsertedTier.mult),
-        ink_factor: upsertedTier.inkFactor
+        number_of_layers: upsertedTier.numberOfLayers
       });
 
       // Log the change
@@ -113,5 +113,5 @@ export async function upsertTiers(tiersList: Tier[]): Promise<Tier[]> {
 const fieldMap: Record<keyof Tier, string> = {
   id: 'id',
   mult: 'mult',
-  ink_factor: 'inkFactor'
+  number_of_layers: 'numberOfLayers'
 };
