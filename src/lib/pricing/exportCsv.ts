@@ -6,7 +6,7 @@ export function exportRowsToCsv(rows:PricedProductRow[], allProducts:Product[], 
   const rowsData = full
     ? source.map(p => rows.find(r=>r.product.sku===p.sku)!)
     : rows;
-  const headers = ["SKU","Producto","Proveedor","Categoría","Tier","BaseTotal","InkAdd","LamAdd","CutAdd","AddOns","FinalPVP","MinPerSqft","AreaSqft","Activo"]; 
+  const headers = ["SKU","Producto","Proveedor","Categoría","Tier","BaseTotal","InkAdd","LamAdd","CutAdd","AddOns","FinalPVP","AreaSqft","Activo"]; 
   const lines = rowsData.map(row => [
     row.product.sku,
     row.product.name,
@@ -19,7 +19,6 @@ export function exportRowsToCsv(rows:PricedProductRow[], allProducts:Product[], 
     row.activePricing.cut_add.toFixed(2),
     row.activePricing.addons_total.toFixed(2),
     row.finalPrice.toFixed(2),
-    (row.product.min_pvp ?? 0).toFixed(2),
     row.product.area_sqft.toFixed(2),
     row.product.active ? '1':'0'
   ]);

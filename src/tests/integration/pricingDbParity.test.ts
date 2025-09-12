@@ -15,22 +15,22 @@ describe('DB vs InMemory pricing parity (basic smoke)', () => {
   let memPrice: PriceBreakdown;
   beforeAll(async () => {
     const seed: {
-      tiers: { id:number; mult:number; ink_factor:number;}[];
-      categoryRules: { category:string; min_pvp?:number;}[];
-      params: { ink_price:number; lamination_price:number; cut_price:number; cut_unit:'per_sqft'|'per_sheet'; rounding_step:number; min_pvp_global:number; cost_method:string; };
-      products: { sku:string; name:string; category:string; providerId:string; cost_sqft:number; area_sqft:number; active_tier:number; min_pvp:number; ink_enabled:boolean; lam_enabled:boolean; cut_enabled:boolean; active:boolean;}[];
+      tiers: { id:number; mult:number; number_of_layers:number;}[];
+      categoryRules: { category:string;}[];
+      params: { ink_price:number; lamination_price:number; cut_price:number; rounding_step:number; cost_method:string; };
+      products: { sku:string; name:string; category:string; providerId:string; cost_sqft:number; area_sqft:number; active_tier:number; ink_enabled:boolean; lam_enabled:boolean; cut_enabled:boolean; active:boolean;}[];
       providers: { id:string; name:string;}[];
     } = {
       tiers:[
-        { id:1, mult:3.5, ink_factor:1 },
-        { id:2, mult:4.0, ink_factor:1 },
-        { id:3, mult:4.3, ink_factor:2 },
-        { id:4, mult:4.5, ink_factor:2 },
-        { id:5, mult:5.0, ink_factor:2 }
+        { id:1, mult:3.5, number_of_layers:1 },
+        { id:2, mult:4.0, number_of_layers:1 },
+        { id:3, mult:4.3, number_of_layers:2 },
+        { id:4, mult:4.5, number_of_layers:2 },
+        { id:5, mult:5.0, number_of_layers:2 }
       ],
-      categoryRules:[ { category:'LargeFormat', min_pvp:6 } ],
-      params:{ ink_price:0.55, lamination_price:1, cut_price:20, cut_unit:'per_sqft', rounding_step:0.05, min_pvp_global:0, cost_method:'latest' },
-      products:[ { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, min_pvp:5, ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true } ],
+      categoryRules:[ { category:'LargeFormat' } ],
+      params:{ ink_price:0.55, lamination_price:1, cut_price:20, rounding_step:0.05, cost_method:'latest' },
+      products:[ { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true } ],
       providers:[ { id:'prov_a', name:'Prov A' } ]
     };
   // Narrow to expected builder argument type via explicit structural mapping
