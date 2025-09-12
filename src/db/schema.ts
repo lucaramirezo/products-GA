@@ -12,10 +12,10 @@ export const providers = pgTable('providers', {
 export const tiers = pgTable('tiers', {
   id: smallint('id').primaryKey(),
   mult: numeric('mult', { precision: 10, scale: 4 }).notNull(),
-  inkFactor: integer('ink_factor').notNull()
+  numberOfLayers: integer('number_of_layers').notNull()
 }, (t) => ({
   multPositive: check('tiers_mult_positive', sql`${t.mult} > 0`),
-  inkFactorNonNegative: check('tiers_ink_factor_non_negative', sql`${t.inkFactor} >= 0`),
+  numberOfLayersNonNegative: check('tiers_number_of_layers_non_negative', sql`${t.numberOfLayers} >= 0`),
   idRange: check('tiers_id_range', sql`${t.id} BETWEEN 1 AND 5`)
 }));
 
@@ -28,9 +28,8 @@ export const products = pgTable('products', {
   costSqft: numeric('cost_sqft', { precision: 12, scale: 4 }).notNull(),
   areaSqft: numeric('area_sqft', { precision: 10, scale: 3 }).notNull().default(sql`1`),
   activeTier: smallint('active_tier').notNull().references(() => tiers.id),
-  minPvp: numeric('min_pvp', { precision: 12, scale: 4 }),
   overrideMultiplier: numeric('override_multiplier', { precision: 10, scale: 4 }),
-  overrideInkFactor: integer('override_ink_factor'),
+  overrideNumberOfLayers: integer('override_number_of_layers'),
   inkEnabled: boolean('ink_enabled').notNull().default(true),
   lamEnabled: boolean('lam_enabled').notNull().default(false),
   cutEnabled: boolean('cut_enabled').notNull().default(false),
@@ -42,9 +41,8 @@ export const products = pgTable('products', {
 }, (t) => ({
   costSqftNonNegative: check('products_cost_sqft_non_negative', sql`${t.costSqft} >= 0`),
   areaSqftPositive: check('products_area_sqft_positive', sql`${t.areaSqft} > 0`),
-  minPvpNonNegative: check('products_min_pvp_non_negative', sql`(${t.minPvp} IS NULL) OR (${t.minPvp} >= 0)`),
   overrideMultPositive: check('products_override_multiplier_positive', sql`(${t.overrideMultiplier} IS NULL) OR (${t.overrideMultiplier} > 0)`),
-  overrideInkFactorNonNegative: check('products_override_ink_factor_non_negative', sql`(${t.overrideInkFactor} IS NULL) OR (${t.overrideInkFactor} >= 0)`),
+  overrideNumberOfLayersNonNegative: check('products_override_number_of_layers_non_negative', sql`(${t.overrideNumberOfLayers} IS NULL) OR (${t.overrideNumberOfLayers} >= 0)`),
   sheetsCountNonNegative: check('products_sheets_count_non_negative', sql`(${t.sheetsCount} IS NULL) OR (${t.sheetsCount} >= 0)`),
   categoryIdx: index('products_category_idx').on(t.category),
   providerIdx: index('products_provider_idx').on(t.providerId),
@@ -54,9 +52,8 @@ export const products = pgTable('products', {
 // category_rules
 export const categoryRules = pgTable('category_rules', {
   category: text('category').primaryKey(),
-  minPvp: numeric('min_pvp', { precision: 12, scale: 4 }),
   overrideMultiplier: numeric('override_multiplier', { precision: 10, scale: 4 }),
-  overrideInkFactor: integer('override_ink_factor')
+  overrideNumberOfLayers: integer('override_number_of_layers')
 });
 
 // price_params singleton
@@ -65,9 +62,7 @@ export const priceParams = pgTable('price_params', {
   inkPrice: numeric('ink_price', { precision: 10, scale: 4 }).notNull(),
   laminationPrice: numeric('lamination_price', { precision: 10, scale: 4 }).notNull(),
   cutPrice: numeric('cut_price', { precision: 10, scale: 4 }).notNull(),
-  cutUnit: text('cut_unit').notNull(),
   roundingStep: numeric('rounding_step', { precision: 10, scale: 4 }).notNull(),
-  minPvpGlobal: numeric('min_pvp_global', { precision: 12, scale: 4 }),
   costMethod: text('cost_method').notNull().default(sql`'latest'`),
   defaultTier: smallint('default_tier').notNull().references(() => tiers.id)
 }, (t) => ({
@@ -75,8 +70,6 @@ export const priceParams = pgTable('price_params', {
   laminationPriceNonNegative: check('price_params_lamination_price_non_negative', sql`${t.laminationPrice} >= 0`),
   cutPriceNonNegative: check('price_params_cut_price_non_negative', sql`${t.cutPrice} >= 0`),
   roundingStepPositive: check('price_params_rounding_step_positive', sql`${t.roundingStep} > 0`),
-  minPvpGlobalNonNegative: check('price_params_min_pvp_global_non_negative', sql`(${t.minPvpGlobal} IS NULL) OR (${t.minPvpGlobal} >= 0)`),
-  cutUnitCheck: check('price_params_cut_unit_valid', sql`${t.cutUnit} in ('per_sqft','per_sheet')`),
   costMethodCheck: check('price_params_cost_method_valid', sql`${t.costMethod} = 'latest'`)
 }));
 

@@ -10,13 +10,13 @@ async function main() {
 
   console.log('Seeding database...');
   await db.transaction(async (tx) => {
-    // tiers (id, mult, ink_factor)
+    // tiers (id, mult, number_of_layers)
     await tx.insert(tiers).values([
-      { id: 1, mult: '3.5', inkFactor: 1 },
-      { id: 2, mult: '4.0', inkFactor: 1 },
-      { id: 3, mult: '4.3', inkFactor: 2 },
-      { id: 4, mult: '4.5', inkFactor: 2 },
-      { id: 5, mult: '5.0', inkFactor: 2 }
+      { id: 1, mult: '3.5', numberOfLayers: 1 },
+      { id: 2, mult: '4.0', numberOfLayers: 1 },
+      { id: 3, mult: '4.3', numberOfLayers: 2 },
+      { id: 4, mult: '4.5', numberOfLayers: 2 },
+      { id: 5, mult: '5.0', numberOfLayers: 2 }
     ]).onConflictDoNothing();
 
     const [provider] = await tx.insert(providers).values({ name: 'Default' }).onConflictDoNothing().returning();
@@ -24,23 +24,21 @@ async function main() {
 
     // category rules (align with app seed for parity tests)
     await tx.insert(categoryRules).values([
-      { category: 'LargeFormat', minPvp: '6' }
+      { category: 'LargeFormat' }
     ]).onConflictDoNothing();
 
     await tx.insert(priceParams).values({
       inkPrice: '0.55',
       laminationPrice: '1',
       cutPrice: '20',
-      cutUnit: 'per_sqft',
       roundingStep: '0.05',
-      minPvpGlobal: '0',
       costMethod: 'latest',
       defaultTier: 1
     }).onConflictDoNothing();
 
     await tx.insert(products).values([
       // Product used by integration test parity
-      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, minPvp: '5', inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
+      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
       { sku: 'SKU1', name: 'Producto Demo 1', category: 'banner', providerId, costSqft: '2.5', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
       { sku: 'SKU2', name: 'Producto Demo 2', category: 'banner', providerId, costSqft: '3.0', areaSqft: '1', activeTier: 2, inkEnabled: true, lamEnabled: true, cutEnabled: false, active: true },
       { sku: 'SKU3', name: 'Producto Demo 3', category: 'vinyl', providerId, costSqft: '1.8', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: true, active: true }
