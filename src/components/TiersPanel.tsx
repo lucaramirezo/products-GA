@@ -26,10 +26,10 @@ export function TiersPanel({ tiers, onUpdateTier }: TiersPanelProps) {
               />
             </label>
             <label className="flex items-center gap-1">
-              <span>Ink×</span>
+              <span>Layers</span>
               <CommitNumberInput
-                value={t.ink_factor}
-                onCommit={(newValue) => onUpdateTier(t.id, { ink_factor: newValue || 0 })}
+                value={t.number_of_layers}
+                onCommit={(newValue) => onUpdateTier(t.id, { number_of_layers: newValue || 0 })}
                 step={1}
                 min={0}
                 className="w-20 rounded border border-slate-300 px-2 py-1"

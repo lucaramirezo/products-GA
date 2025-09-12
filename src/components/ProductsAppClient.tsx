@@ -67,7 +67,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
         categoryRule: categoryRules.find(c => c.category === p.category) 
       })
     );
-  }, [products, query, categoryRules, tiers, params, providers, providerName]);
+  }, [products, query, categoryRules, tiers, params, providerName]);
 
   // Server action wrappers
   async function handleUpdateProduct(sku: string, patch: Partial<Product>) {
@@ -195,21 +195,12 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
   // Reports data
   const reportData = useMemo(() => {
     const byTier: Record<number, { sum: number; count: number }> = {};
-    const minApplied: Array<{ sku: string; name: string; diff: number }> = [];
     
     computedProducts.forEach((r) => {
       const t = r.product.active_tier;
       byTier[t] = byTier[t] || { sum: 0, count: 0 };
       byTier[t].sum += r.margin;
       byTier[t].count += 1;
-      
-      if (r.activePricing.min_applied) {
-        minApplied.push({
-          sku: r.product.sku,
-          name: r.product.name,
-          diff: Number((r.activePricing.min_total - r.activePricing.pvp_raw).toFixed(2)),
-        });
-      }
     });
     
     const avgPerTier = tiers.map((t) => ({
@@ -217,14 +208,12 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
       avg: byTier[t.id] ? byTier[t.id].sum / byTier[t.id].count : 0,
     }));
     
-    minApplied.sort((a, b) => b.diff - a.diff);
-    
     const topCostChanges = audit
       .filter((a) => a.field === "cost_sqft" && typeof a.after === 'number' && typeof a.before === 'number')
       .slice(0, 5)
       .map((a) => ({ ...a, diff: (a.after as number - (a.before as number)).toFixed(3) }));
     
-    return { avgPerTier, topCostChanges, minApplied: minApplied.slice(0, 5) };
+    return { avgPerTier, topCostChanges };
   }, [computedProducts, tiers, audit]);
 
   // Current product for editing

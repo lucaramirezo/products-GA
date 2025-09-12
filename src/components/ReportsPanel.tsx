@@ -14,7 +14,6 @@ interface ReportData {
     user: string;
     diff: string;
   }>;
-  minApplied: Array<{ sku: string; name: string; diff: number }>;
 }
 
 interface ReportsPanelProps {
@@ -56,33 +55,6 @@ export function ReportsPanel({ reportData }: ReportsPanelProps) {
             {!reportData.topCostChanges.length && (
               <tr>
                 <Td colSpan={5} className="text-center text-slate-500 py-4">Sin cambios registrados</Td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="font-medium text-sm mb-2">Top mínimos aplicados</h3>
-        <table className="text-xs w-full">
-          <thead className="text-slate-500">
-            <tr>
-              <Th>SKU</Th>
-              <Th>Producto</Th>
-              <Th>Diff (€)</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {reportData.minApplied.map((m) => (
-              <tr key={m.sku} className="border-t border-slate-100">
-                <Td>{m.sku}</Td>
-                <Td>{m.name}</Td>
-                <Td>{m.diff.toFixed(2)}</Td>
-              </tr>
-            ))}
-            {!reportData.minApplied.length && (
-              <tr>
-                <Td colSpan={3} className="text-center text-slate-500 py-4">Sin mínimos aplicados</Td>
               </tr>
             )}
           </tbody>

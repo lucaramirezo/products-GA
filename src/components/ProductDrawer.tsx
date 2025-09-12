@@ -104,16 +104,6 @@ export function ProductDrawer({
             </select>
           </Field>
           
-          <Field label="Min PVP">
-            <CommitNumberInput
-              value={product.min_pvp}
-              onCommit={(newValue) => onUpdate(product.sku, { min_pvp: newValue || undefined })}
-              step={0.1}
-              min={0}
-              className="w-32 rounded border border-slate-300 px-3 py-2"
-            />
-          </Field>
-          
           <div className="grid grid-cols-3 gap-4">
             <Field label="Ink on?">
               <input
@@ -148,10 +138,10 @@ export function ProductDrawer({
                 className="w-full rounded border border-slate-300 px-3 py-2"
               />
             </Field>
-            <Field label="Override Ink×">
+            <Field label="Override Layers">
               <CommitNumberInput
-                value={product.override_ink_factor}
-                onCommit={(newValue) => onUpdate(product.sku, { override_ink_factor: newValue || undefined })}
+                value={product.override_number_of_layers}
+                onCommit={(newValue) => onUpdate(product.sku, { override_number_of_layers: newValue || undefined })}
                 step={1}
                 min={0}
                 className="w-full rounded border border-slate-300 px-3 py-2"
@@ -172,8 +162,7 @@ export function ProductDrawer({
             <div className="space-y-1">
               <div>Base: {computed.activePricing.base_total.toFixed(2)}</div>
               <div>Add-ons: {computed.activePricing.addons_total.toFixed(2)} (Ink {computed.activePricing.ink_add.toFixed(2)} / Lam {computed.activePricing.lam_add.toFixed(2)} / Cut {computed.activePricing.cut_add.toFixed(2)})</div>
-              <div>Mínimo total: {computed.activePricing.min_total.toFixed(2)}</div>
-              <div>Final: {CURRENCY(computed.finalPrice)} ({computed.finalSource}) {computed.activePricing.min_applied && "*mín"}</div>
+              <div>Final: {CURRENCY(computed.finalPrice)} ({computed.finalSource})</div>
               <div className="flex flex-wrap gap-1">
                 {computed.tiersPreview.map((tp) => (
                   <span key={tp.tier} className={`px-2 py-0.5 rounded bg-white border text-[10px] ${tp.tier === product.active_tier ? "border-slate-500" : "border-slate-200"}`}>

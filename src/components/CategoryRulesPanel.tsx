@@ -18,16 +18,6 @@ export function CategoryRulesPanel({ categoryRules, onUpsertCategoryRule, onDele
           <div key={r.category} className="flex flex-wrap items-center gap-2">
             <span className="font-semibold min-w-28">{r.category}</span>
             <label className="flex items-center gap-1">
-              <span>Min</span>
-              <CommitNumberInput
-                value={r.min_pvp}
-                onCommit={(newValue) => onUpsertCategoryRule({ ...r, min_pvp: newValue || undefined })}
-                step={0.1}
-                min={0}
-                className="w-20 rounded border border-slate-300 px-2 py-1"
-              />
-            </label>
-            <label className="flex items-center gap-1">
               <span>Ovr Mult</span>
               <CommitNumberInput
                 value={r.override_multiplier}
@@ -38,10 +28,10 @@ export function CategoryRulesPanel({ categoryRules, onUpsertCategoryRule, onDele
               />
             </label>
             <label className="flex items-center gap-1">
-              <span>Ovr Ink×</span>
+              <span>Ovr Layers</span>
               <CommitNumberInput
-                value={r.override_ink_factor}
-                onCommit={(newValue) => onUpsertCategoryRule({ ...r, override_ink_factor: newValue || undefined })}
+                value={r.override_number_of_layers}
+                onCommit={(newValue) => onUpsertCategoryRule({ ...r, override_number_of_layers: newValue || undefined })}
                 step={1}
                 min={0}
                 className="w-16 rounded border border-slate-300 px-2 py-1"

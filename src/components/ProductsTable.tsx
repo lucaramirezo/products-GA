@@ -19,7 +19,7 @@ interface ProductsTableProps {
   onUpdateProduct: (sku: string, patch: Partial<Product>) => void;
   providerName: (id: string) => string;
   audit: AuditEntry[];
-  tiers: Array<{ id: number; mult: number; ink_factor: number }>;
+  tiers: Array<{ id: number; mult: number; number_of_layers: number }>;
 }
 
 export function ProductsTable({
@@ -89,7 +89,6 @@ export function ProductsTable({
               <Th className="text-right">Cut</Th>
               <Th className="text-right">Add-ons</Th>
               <Th className="text-right">Final</Th>
-              <Th>Min/ft²</Th>
               <Th>Area</Th>
               <Th>Activo</Th>
             </tr>
@@ -110,7 +109,7 @@ export function ProductsTable({
       </div>
       
       <p className="text-xs text-slate-500">
-        Fórmula: base=(cost_sqft × mult × área) + ink(ink_price×ink_factor×área opcional) + lam(lam_price×área) + cut(depende unidad) → aplica mínimo (min_per_ft² × área) → redondeo ↑.
+        Fórmula: base=(cost_sqft × mult × área) + ink(ink_price×number_of_layers×área opcional) + lam(lam_price×área) + cut(cut_price×sheets_count) → redondeo ↑.
       </p>
       
       {showAudit && (
@@ -153,7 +152,7 @@ interface ProductRowProps {
   onEditProduct: (sku: string) => void;
   onUpdateProduct: (sku: string, patch: Partial<Product>) => void;
   providerName: (id: string) => string;
-  tiers: Array<{ id: number; mult: number; ink_factor: number }>;
+  tiers: Array<{ id: number; mult: number; number_of_layers: number }>;
 }
 
 function ProductRow({ row, onEditProduct, onUpdateProduct, providerName, tiers }: ProductRowProps) {
@@ -207,9 +206,7 @@ function ProductRow({ row, onEditProduct, onUpdateProduct, providerName, tiers }
       <Td className="text-right tabular-nums">{row.activePricing.addons_total.toFixed(2)}</Td>
       <Td className="text-right tabular-nums font-medium">
         {row.finalPrice.toFixed(2)} 
-        {row.activePricing.min_applied && <span className="text-amber-600" title="Mínimo aplicado">*</span>}
       </Td>
-      <Td className="text-center">{(row.product.min_pvp ?? 0).toFixed(2)}</Td>
       <Td className="text-center">
         <CommitNumberInput
           value={row.product.area_sqft}
