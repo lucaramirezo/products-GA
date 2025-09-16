@@ -100,6 +100,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
       ink_enabled: true,
       lam_enabled: false,
       cut_enabled: false,
+      sell_mode: 'SQFT', // Default to SQFT mode
       active: true,
     };
 
