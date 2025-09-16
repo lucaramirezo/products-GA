@@ -2,9 +2,47 @@
 
 import { getDb, getPool } from '@/db/client';
 import { products, auditLog } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Product } from '@/lib/pricing/types';
+
+// Helper function to adjust sequence to next available SKU
+async function adjustSequenceToNextAvailable(pool: any): Promise<void> {
+  try {
+    // Get all existing SKUs that follow the SKU-XXX pattern
+    const result = await pool.query(`
+      SELECT sku FROM products 
+      WHERE sku ~ '^SKU-[0-9]{3}$' 
+      ORDER BY sku
+    `);
+    
+    const existingSkus = result.rows.map((r: any) => r.sku);
+    
+    // Extract numbers from SKUs and find the next available one
+    const existingNumbers = existingSkus.map((sku: string) => {
+      const match = sku.match(/^SKU-(\d{3})$/);
+      return match ? parseInt(match[1], 10) : null;
+    }).filter((num: number | null) => num !== null).sort((a: number, b: number) => a - b);
+    
+    // Find the first gap or next number
+    let nextNumber = 0;
+    for (const num of existingNumbers) {
+      if (num === nextNumber) {
+        nextNumber++;
+      } else {
+        break; // Found a gap
+      }
+    }
+    
+    // Set the sequence to the next available number
+    await pool.query('SELECT setval($1, $2, false)', ['sku_seq', nextNumber]);
+    
+    console.log(`Sequence adjusted to next available SKU: ${nextNumber} (SKU-${nextNumber.toString().padStart(3, '0')})`);
+  } catch (error) {
+    console.error('Error adjusting sequence:', error);
+    throw error;
+  }
+}
 
 // Optimized version - uses single pooled DB connection
 
@@ -32,6 +70,7 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
   if (patch.ink_enabled !== undefined) updateData.inkEnabled = patch.ink_enabled;
   if (patch.lam_enabled !== undefined) updateData.lamEnabled = patch.lam_enabled;
   if (patch.cut_enabled !== undefined) updateData.cutEnabled = patch.cut_enabled;
+  if (patch.sell_mode !== undefined) updateData.sellMode = patch.sell_mode;
   if (patch.sheets_count !== undefined) updateData.sheetsCount = patch.sheets_count;
   if (patch.active !== undefined) updateData.active = patch.active;
 
@@ -49,6 +88,7 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: 'inkEnabled',
     lam_enabled: 'lamEnabled',
     cut_enabled: 'cutEnabled',
+    sell_mode: 'sellMode',
     sheets_count: 'sheetsCount',
     active: 'active'
   };
@@ -98,6 +138,7 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: updatedProduct.inkEnabled,
     lam_enabled: updatedProduct.lamEnabled,
     cut_enabled: updatedProduct.cutEnabled,
+    sell_mode: updatedProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: updatedProduct.sheetsCount ?? undefined,
     active: updatedProduct.active
   };
@@ -108,21 +149,18 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
 
 export async function createProduct(product: Product): Promise<Product> {
   const db = getDb();
+  const pool = getPool();
   
   // Auto-generate SKU if it's a placeholder (NEW-xxx) or missing
   const shouldAutoGenerate = !product.sku || product.sku.startsWith('NEW-');
   
-  let finalSku = product.sku;
-  
   if (shouldAutoGenerate) {
-    // Generate SKU using the sequence - use pool for raw SQL
-    const pool = getPool();
-    const result = await pool.query(`SELECT 'SKU-' || lpad(nextval('sku_seq')::text, 3, '0') as sku`);
-    finalSku = result.rows[0].sku;
+    // Find next available SKU to avoid conflicts
+    await adjustSequenceToNextAvailable(pool);
   }
-
+  
   const insertData = {
-    sku: finalSku,
+    sku: shouldAutoGenerate ? sql`DEFAULT` : product.sku,
     name: product.name,
     category: product.category,
     providerId: product.providerId,
@@ -134,11 +172,24 @@ export async function createProduct(product: Product): Promise<Product> {
     inkEnabled: product.ink_enabled,
     lamEnabled: product.lam_enabled,
     cutEnabled: product.cut_enabled,
+    sellMode: product.sell_mode,
     sheetsCount: product.sheets_count,
     active: product.active
   };
 
-  const [newProduct] = await db.insert(products).values(insertData).returning();
+  let newProduct;
+  try {
+    [newProduct] = await db.insert(products).values(insertData).returning();
+  } catch (error: any) {
+    // If we get a duplicate key error and we're auto-generating, try to fix sequence and retry
+    if (shouldAutoGenerate && error?.code === '23505') {
+      console.log('SKU conflict detected, adjusting sequence and retrying...');
+      await adjustSequenceToNextAvailable(pool);
+      [newProduct] = await db.insert(products).values(insertData).returning();
+    } else {
+      throw error;
+    }
+  }
 
   // Create audit entry
   await db.insert(auditLog).values({
@@ -164,6 +215,7 @@ export async function createProduct(product: Product): Promise<Product> {
     ink_enabled: newProduct.inkEnabled,
     lam_enabled: newProduct.lamEnabled,
     cut_enabled: newProduct.cutEnabled,
+    sell_mode: newProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: newProduct.sheetsCount ?? undefined,
     active: newProduct.active
   };

@@ -6,13 +6,14 @@ export function exportRowsToCsv(rows:PricedProductRow[], allProducts:Product[], 
   const rowsData = full
     ? source.map(p => rows.find(r=>r.product.sku===p.sku)!)
     : rows;
-  const headers = ["SKU","Producto","Proveedor","Categoría","Tier","BaseTotal","InkAdd","LamAdd","CutAdd","AddOns","FinalPVP","AreaSqft","Activo"]; 
+  const headers = ["SKU","Producto","Proveedor","Categoría","Tier","SellMode","BaseTotal","InkAdd","LamAdd","CutAdd","AddOns","FinalPVP","AreaSqft","Activo"]; 
   const lines = rowsData.map(row => [
     row.product.sku,
     row.product.name,
     providerName(row.product.providerId),
     row.product.category,
     row.product.active_tier,
+    row.product.sell_mode,
     row.activePricing.base_total.toFixed(2),
     row.activePricing.ink_add.toFixed(2),
     row.activePricing.lam_add.toFixed(2),

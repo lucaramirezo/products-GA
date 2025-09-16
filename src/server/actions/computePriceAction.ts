@@ -37,11 +37,11 @@ function seedData(){
     { category:'LargeFormat' },
     { category:'Stickers', override_multiplier:4.2, override_number_of_layers:2 },
   ];
-  const params:PriceParams = { ink_price:0.55, lamination_price:0, cut_price:0, rounding_step:0.05, cost_method:'latest' };
+  const params:PriceParams = { ink_price:0.55, lamination_price:0, cut_price:0, cut_factor:0.25, rounding_step:0.05, cost_method:'latest' };
   const products:Product[] = [
-    { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true },
-    { sku:'SKU-002', name:'Sticker Pack (10u)', category:'Stickers', providerId:'prov_b', cost_sqft:0.9, area_sqft:1, active_tier:2, override_multiplier:4.6, override_number_of_layers:2, ink_enabled:true, lam_enabled:false, cut_enabled:true, active:true },
-    { sku:'SKU-003', name:'Canvas Print', category:'LargeFormat', providerId:'prov_a', cost_sqft:3.4, area_sqft:1, active_tier:3, ink_enabled:true, active:true },
+    { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, sell_mode:'SQFT', ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true },
+    { sku:'SKU-002', name:'Sticker Pack (10u)', category:'Stickers', providerId:'prov_b', cost_sqft:0.9, area_sqft:1, active_tier:2, sell_mode:'SHEET', override_multiplier:4.6, override_number_of_layers:2, ink_enabled:true, lam_enabled:false, cut_enabled:true, active:true },
+    { sku:'SKU-003', name:'Canvas Print', category:'LargeFormat', providerId:'prov_a', cost_sqft:3.4, area_sqft:1, active_tier:3, sell_mode:'SQFT', ink_enabled:true, active:true },
   ];
   const providers = [ { id:'prov_a', name:'Proveedor A' }, { id:'prov_b', name:'Proveedor B' } ];
   return { products, tiers, categoryRules, params, providers };

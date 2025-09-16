@@ -75,6 +75,7 @@ export async function getInitialData(): Promise<InitialData> {
       ink_enabled: p.inkEnabled,
       lam_enabled: p.lamEnabled,
       cut_enabled: p.cutEnabled,
+      sell_mode: p.sellMode as 'SQFT' | 'SHEET',
       sheets_count: p.sheetsCount ?? undefined,
       active: p.active
     }));
@@ -90,6 +91,7 @@ export async function getInitialData(): Promise<InitialData> {
       ink_price: 0.55,
       lamination_price: 0,
       cut_price: 0,
+      cut_factor: 25,
       rounding_step: 0.05,
       cost_method: "latest"
     };
@@ -98,6 +100,7 @@ export async function getInitialData(): Promise<InitialData> {
       ink_price: Number(paramsData[0].inkPrice),
       lamination_price: Number(paramsData[0].laminationPrice),
       cut_price: Number(paramsData[0].cutPrice),
+      cut_factor: Number(paramsData[0].cutFactor),
       rounding_step: Number(paramsData[0].roundingStep),
       cost_method: paramsData[0].costMethod as "latest"
     } : defaultParams;
@@ -149,6 +152,7 @@ export async function getInitialData(): Promise<InitialData> {
         ink_price: 0.55,
         lamination_price: 0,
         cut_price: 0,
+        cut_factor: 25,
         rounding_step: 0.05,
         cost_method: "latest"
       },

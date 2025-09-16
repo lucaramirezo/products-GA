@@ -1,5 +1,8 @@
-import { pgTable, text, uuid, smallint, numeric, integer, boolean, timestamp, bigserial, jsonb, check, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, smallint, numeric, integer, boolean, timestamp, bigserial, jsonb, check, index, pgEnum } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+
+// Enum for sell mode
+export const sellModeEnum = pgEnum('sell_mode', ['SQFT', 'SHEET']);
 
 // providers
 export const providers = pgTable('providers', {
@@ -33,6 +36,7 @@ export const products = pgTable('products', {
   inkEnabled: boolean('ink_enabled').notNull().default(true),
   lamEnabled: boolean('lam_enabled').notNull().default(false),
   cutEnabled: boolean('cut_enabled').notNull().default(false),
+  sellMode: sellModeEnum('sell_mode').notNull().default('SQFT'),
   sheetsCount: integer('sheets_count'),
   active: boolean('active').notNull().default(true),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -46,7 +50,8 @@ export const products = pgTable('products', {
   sheetsCountNonNegative: check('products_sheets_count_non_negative', sql`(${t.sheetsCount} IS NULL) OR (${t.sheetsCount} >= 0)`),
   categoryIdx: index('products_category_idx').on(t.category),
   providerIdx: index('products_provider_idx').on(t.providerId),
-  tierIdx: index('products_active_tier_idx').on(t.activeTier)
+  tierIdx: index('products_active_tier_idx').on(t.activeTier),
+  sellModeIdx: index('products_sell_mode_idx').on(t.sellMode)
 }));
 
 // category_rules
@@ -62,6 +67,7 @@ export const priceParams = pgTable('price_params', {
   inkPrice: numeric('ink_price', { precision: 10, scale: 4 }).notNull(),
   laminationPrice: numeric('lamination_price', { precision: 10, scale: 4 }).notNull(),
   cutPrice: numeric('cut_price', { precision: 10, scale: 4 }).notNull(),
+  cutFactor: numeric('cut_factor', { precision: 10, scale: 4 }).notNull().default(sql`0.25`),
   roundingStep: numeric('rounding_step', { precision: 10, scale: 4 }).notNull(),
   costMethod: text('cost_method').notNull().default(sql`'latest'`),
   defaultTier: smallint('default_tier').notNull().references(() => tiers.id)
@@ -69,6 +75,7 @@ export const priceParams = pgTable('price_params', {
   inkPriceNonNegative: check('price_params_ink_price_non_negative', sql`${t.inkPrice} >= 0`),
   laminationPriceNonNegative: check('price_params_lamination_price_non_negative', sql`${t.laminationPrice} >= 0`),
   cutPriceNonNegative: check('price_params_cut_price_non_negative', sql`${t.cutPrice} >= 0`),
+  cutFactorNonNegative: check('price_params_cut_factor_non_negative', sql`${t.cutFactor} >= 0`),
   roundingStepPositive: check('price_params_rounding_step_positive', sql`${t.roundingStep} > 0`),
   costMethodCheck: check('price_params_cost_method_valid', sql`${t.costMethod} = 'latest'`)
 }));

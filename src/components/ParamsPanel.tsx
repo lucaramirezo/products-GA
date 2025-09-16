@@ -54,6 +54,12 @@ export function ParamsPanel({
           onChange={(v) => onUpdateParams({ cut_price: v })}
         />
         <ParamInput
+          label="Cut Factor (%)"
+          value={params.cut_factor * 100}
+          step={1}
+          onChange={(v) => onUpdateParams({ cut_factor: v / 100 })}
+        />
+        <ParamInput
           label="Rounding step (€)"
           value={params.rounding_step}
           step={0.01}

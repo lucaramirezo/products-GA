@@ -82,6 +82,7 @@ export function ProductsTable({
               <Th>Proveedor</Th>
               <Th>Categoría</Th>
               <Th className="text-right">Cost/ft²</Th>
+              <Th>Modo</Th>
               <Th>Tier</Th>
               <Th className="text-right">Base</Th>
               <Th className="text-right">Ink</Th>
@@ -109,7 +110,7 @@ export function ProductsTable({
       </div>
       
       <p className="text-xs text-slate-500">
-        Fórmula: base=(cost_sqft × mult × área) + ink(ink_price×number_of_layers×área opcional) + lam(lam_price×área) + cut(cut_price×sheets_count) → redondeo ↑.
+        Fórmula: base=(cost_sqft × mult × área) + ink(ink_price×number_of_layers×área) + lam(lam_price×área) + cut(cut_factor×base solo en modo SQFT) → redondeo ↑.
       </p>
       
       {showAudit && (
@@ -181,6 +182,11 @@ function ProductRow({ row, onEditProduct, onUpdateProduct, providerName, tiers }
         {row.product.cost_sqft.toFixed(2)}
       </Td>
       <Td>
+        <span className={`text-xs px-2 py-1 rounded ${row.product.sell_mode === 'SQFT' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+          {row.product.sell_mode}
+        </span>
+      </Td>
+      <Td>
         <select
           className="bg-transparent border rounded px-1 py-0.5 text-[11px]"
           value={row.product.active_tier}
@@ -201,7 +207,9 @@ function ProductRow({ row, onEditProduct, onUpdateProduct, providerName, tiers }
         {row.activePricing.lam_add ? row.activePricing.lam_add.toFixed(2) : "—"}
       </Td>
       <Td className="text-right tabular-nums">
-        {row.activePricing.cut_add ? row.activePricing.cut_add.toFixed(2) : "—"}
+        {row.activePricing.cut_add ? row.activePricing.cut_add.toFixed(2) : 
+         (row.product.cut_enabled && row.product.sell_mode === 'SHEET') ? 
+         <span className="text-orange-500 text-xs" title="Cutting disabled for SHEET mode">⚠️</span> : "—"}
       </Td>
       <Td className="text-right tabular-nums">{row.activePricing.addons_total.toFixed(2)}</Td>
       <Td className="text-right tabular-nums font-medium">

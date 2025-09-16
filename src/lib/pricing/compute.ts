@@ -7,17 +7,19 @@ export function computePrice(ctx:ComputeContext): PriceBreakdown {
   const eff = resolveEffective({ product, tier, categoryRule, params });
   const area = Math.max(product.area_sqft || 1, 0.0001);
   
-  // New formula: base = (cost_sqft × multiplier × area) + (ink_price × number_of_layers × area) + (lamination_price × area) + (cut_price × sheets_count)
+  // Base material cost: cost_sqft × multiplier × area
   const base_per_sqft = product.cost_sqft * eff.mult;
   const base_total = base_per_sqft * area;
+  
+  // Add-ons: ink and lamination
   const ink_add = toggles.ink && product.ink_enabled ? params.ink_price * eff.number_of_layers * area : 0;
   const lam_add = toggles.lam && product.lam_enabled ? params.lamination_price * area : 0;
   
-  // Cutting is only per sheet now
+  // New cutting logic: only applies when sell_mode = SQFT
   let cut_add = 0;
-  if (toggles.cut && product.cut_enabled) {
-    const sheets = sheets_override ?? product.sheets_count ?? area; // simple fallback
-    cut_add = params.cut_price * sheets;
+  if (toggles.cut && product.cut_enabled && product.sell_mode === 'SQFT') {
+    // cut_add = cut_factor × (base_material_price) where base_material_price = cost_sqft × multiplier × area
+    cut_add = params.cut_factor * base_total;
   }
   
   const addons_total = ink_add + lam_add + cut_add;

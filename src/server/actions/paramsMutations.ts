@@ -18,6 +18,7 @@ export async function updateParams(patch: Partial<PriceParams>): Promise<PricePa
     if (patch.ink_price !== undefined) updateData.inkPrice = patch.ink_price.toString();
     if (patch.lamination_price !== undefined) updateData.laminationPrice = patch.lamination_price.toString();
     if (patch.cut_price !== undefined) updateData.cutPrice = patch.cut_price.toString();
+    if (patch.cut_factor !== undefined) updateData.cutFactor = patch.cut_factor.toString();
     if (patch.rounding_step !== undefined) updateData.roundingStep = patch.rounding_step.toString();
     if (patch.cost_method !== undefined) updateData.costMethod = patch.cost_method;
     
@@ -37,6 +38,7 @@ export async function updateParams(patch: Partial<PriceParams>): Promise<PricePa
         inkPrice: patch.ink_price?.toString() ?? '0.55',
         laminationPrice: patch.lamination_price?.toString() ?? '0',
         cutPrice: patch.cut_price?.toString() ?? '0',
+        cutFactor: patch.cut_factor?.toString() ?? '0.25',
         roundingStep: patch.rounding_step?.toString() ?? '0.05',
         costMethod: patch.cost_method ?? 'latest',
         defaultTier: 1 // Default tier
@@ -73,6 +75,7 @@ export async function updateParams(patch: Partial<PriceParams>): Promise<PricePa
       ink_price: Number(updatedParams.inkPrice),
       lamination_price: Number(updatedParams.laminationPrice),
       cut_price: Number(updatedParams.cutPrice),
+      cut_factor: Number(updatedParams.cutFactor),
       rounding_step: Number(updatedParams.roundingStep),
       cost_method: updatedParams.costMethod as "latest"
     };
@@ -86,6 +89,7 @@ const fieldMap: Partial<Record<keyof PriceParams, string>> = {
   ink_price: 'inkPrice',
   lamination_price: 'laminationPrice',
   cut_price: 'cutPrice',
+  cut_factor: 'cutFactor',
   rounding_step: 'roundingStep',
   cost_method: 'costMethod'
 };
