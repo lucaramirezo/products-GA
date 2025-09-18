@@ -41,6 +41,16 @@ yarn-error.log*
 next-env.d.ts
 
 # project specific
-drizzle/
+# drizzle/ - schema and migrations should be tracked
 coverage/
 *.log
+
+# .github/ - copilot instructions should be tracked
+
+# temporary files
+temp/
+tmp/
+*.tmp
+
+# test output
+test-results/

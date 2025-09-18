@@ -1,4 +1,8 @@
 import { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
+import { 
+  Purchase, PurchaseItem, PriceEntry, CreatePurchaseDTO, 
+  PurchaseWithItems, PaginationParams, PurchaseFilters 
+} from '@/lib/types/purchase';
 
 export interface ProductsRepo {
   list(): Promise<Product[]>;
@@ -38,3 +42,46 @@ export interface AuditRepo {
 }
 
 export interface AuditEntry { entity:string; id:string; field:string; before:unknown; after:unknown; date:string; user:string; }
+
+// Purchases Repository
+export interface PurchasesRepository {
+  // CRUD operations
+  list(filters?: PurchaseFilters, pagination?: PaginationParams): Promise<{ purchases: PurchaseWithItems[]; total: number }>;
+  getById(id: string): Promise<PurchaseWithItems | null>;
+  create(dto: CreatePurchaseDTO): Promise<PurchaseWithItems>;
+  update(id: string, patch: Partial<Purchase>): Promise<Purchase>;
+  softDelete(id: string): Promise<void>;
+  
+  // Specific queries
+  findByDateRange(from: Date, to: Date, pagination?: PaginationParams): Promise<{ purchases: PurchaseWithItems[]; total: number }>;
+  findBySupplier(supplierId: string, pagination?: PaginationParams): Promise<{ purchases: PurchaseWithItems[]; total: number }>;
+  findByInvoiceNo(invoiceNo: string): Promise<PurchaseWithItems | null>;
+  
+  // Items operations
+  addItem(purchaseId: string, item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>): Promise<PurchaseItem>;
+  updateItem(itemId: string, patch: Partial<PurchaseItem>): Promise<PurchaseItem>;
+  deleteItem(itemId: string): Promise<void>;
+}
+
+// PriceBook Repository
+export interface PriceBookRepository {
+  // Price entries CRUD
+  listByProduct(productId: string): Promise<PriceEntry[]>;
+  getById(id: string): Promise<PriceEntry | null>;
+  createEntry(entry: Omit<PriceEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<PriceEntry>;
+  updateEntry(id: string, patch: Partial<PriceEntry>): Promise<PriceEntry>;
+  softDelete(id: string): Promise<void>;
+  
+  // Pin management
+  pinEntry(productId: string, entryId: string): Promise<void>;
+  unpinEntry(productId: string, entryId: string): Promise<void>;
+  unpinAllForProduct(productId: string): Promise<void>;
+  
+  // Active status management
+  activateEntry(id: string): Promise<void>;
+  deactivateEntry(id: string): Promise<void>;
+  
+  // Current cost resolution
+  resolveCurrent(productId: string): Promise<PriceEntry | null>;
+  resolveCurrentCost(productId: string): Promise<number | null>;
+}
