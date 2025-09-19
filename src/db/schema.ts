@@ -4,10 +4,15 @@ import { sql } from 'drizzle-orm';
 // Enum for sell mode
 export const sellModeEnum = pgEnum('sell_mode', ['SQFT', 'SHEET']);
 
-// providers
+// Enum for purchase item units
+export const purchaseUnitEnum = pgEnum('purchase_unit', ['sqft', 'sheet']);
+
+// providers (now suppliers - keep as vendor catalog)
 export const providers = pgTable('providers', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull().unique(),
+  active: boolean('active').notNull().default(true),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   lastUpdate: timestamp('last_update', { withTimezone: true }).defaultNow()
 });
 
@@ -100,6 +105,45 @@ export const priceCache = pgTable('price_cache', {
   breakdown: jsonb('breakdown').notNull(),
   computedAt: timestamp('computed_at', { withTimezone: true }).defaultNow()
 });
+
+// purchases (manual invoices from suppliers)
+export const purchases = pgTable('purchases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  supplierId: uuid('supplier_id').references(() => providers.id, { onUpdate: 'cascade' }),
+  invoiceNo: text('invoice_no'),
+  date: timestamp('date', { withTimezone: true }).notNull(),
+  currency: text('currency').default('USD'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+});
+
+// purchase_items (lines within a purchase)
+export const purchaseItems = pgTable('purchase_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  purchaseId: uuid('purchase_id').notNull().references(() => purchases.id, { onDelete: 'cascade' }),
+  productId: text('product_id').references(() => products.sku, { onUpdate: 'cascade' }),
+  name: text('name').notNull(),
+  qty: numeric('qty', { precision: 12, scale: 4 }).notNull(),
+  unit: purchaseUnitEnum('unit').notNull(),
+  amount: numeric('amount', { precision: 12, scale: 4 }).notNull(),
+  linked: boolean('linked').notNull().default(false),
+  appliedToProduct: boolean('applied_to_product').notNull().default(false),
+  // For sheet unit calculations when no product is linked
+  tempWidth: numeric('temp_width', { precision: 10, scale: 3 }),
+  tempHeight: numeric('temp_height', { precision: 10, scale: 3 }),
+  tempUom: text('temp_uom'), // 'in' or 'cm'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+}, (t) => ({
+  qtyPositive: check('purchase_items_qty_positive', sql`${t.qty} > 0`),
+  amountNonNegative: check('purchase_items_amount_non_negative', sql`${t.amount} >= 0`),
+  tempWidthPositive: check('purchase_items_temp_width_positive', sql`(${t.tempWidth} IS NULL) OR (${t.tempWidth} > 0)`),
+  tempHeightPositive: check('purchase_items_temp_height_positive', sql`(${t.tempHeight} IS NULL) OR (${t.tempHeight} > 0)`),
+  tempUomValid: check('purchase_items_temp_uom_valid', sql`(${t.tempUom} IS NULL) OR (${t.tempUom} IN ('in', 'cm'))`),
+  purchaseIdx: index('purchase_items_purchase_idx').on(t.purchaseId),
+  productIdx: index('purchase_items_product_idx').on(t.productId)
+}));
 
 // Helper: soft delete predicate view suggestion (actual view created via raw SQL migration if needed)
 export const activeProductsViewName = 'active_products';

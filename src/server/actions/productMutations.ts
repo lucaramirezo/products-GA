@@ -5,9 +5,10 @@ import { products, auditLog } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Product } from '@/lib/pricing/types';
+import type { Pool } from 'pg';
 
 // Helper function to adjust sequence to next available SKU
-async function adjustSequenceToNextAvailable(pool: any): Promise<void> {
+async function adjustSequenceToNextAvailable(pool: Pool): Promise<void> {
   try {
     // Get all existing SKUs that follow the SKU-XXX pattern
     const result = await pool.query(`
@@ -16,7 +17,7 @@ async function adjustSequenceToNextAvailable(pool: any): Promise<void> {
       ORDER BY sku
     `);
     
-    const existingSkus = result.rows.map((r: any) => r.sku);
+    const existingSkus = result.rows.map((r: { sku: string }) => r.sku);
     
     // Extract numbers from SKUs and find the next available one
     const existingNumbers = existingSkus.map((sku: string) => {
@@ -180,9 +181,9 @@ export async function createProduct(product: Product): Promise<Product> {
   let newProduct;
   try {
     [newProduct] = await db.insert(products).values(insertData).returning();
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If we get a duplicate key error and we're auto-generating, try to fix sequence and retry
-    if (shouldAutoGenerate && error?.code === '23505') {
+    if (shouldAutoGenerate && error && typeof error === 'object' && 'code' in error && error.code === '23505') {
       console.log('SKU conflict detected, adjusting sequence and retrying...');
       await adjustSequenceToNextAvailable(pool);
       [newProduct] = await db.insert(products).values(insertData).returning();

@@ -11,14 +11,13 @@ import { updateProduct, createProduct } from '@/server/actions/productMutations'
 import { updateParams } from '@/server/actions/paramsMutations';
 import { updateTier } from '@/server/actions/tiersMutations';
 import { upsertCategoryRule, deleteCategoryRule } from '@/server/actions/categoryRulesMutations';
-import { simulateImport } from '@/server/actions/providerMutations';
 
 // Components
 import { TabButton } from './ui';
 import { ProductsTable } from './ProductsTable';
 import { ProductDrawer } from './ProductDrawer';
 import { ParamsPanel } from './ParamsPanel';
-import { ProvidersPanel } from './ProvidersPanel';
+import { PurchasesPanel } from './PurchasesPanel';
 import { ReportsPanel } from './ReportsPanel';
 
 interface ProductsAppClientProps {
@@ -27,7 +26,7 @@ interface ProductsAppClientProps {
 
 export default function ProductsAppClient({ initialData }: ProductsAppClientProps) {
   // UI State
-  const [tab, setTab] = useState<"productos" | "proveedores" | "parametros" | "reportes">("productos");
+  const [tab, setTab] = useState<"productos" | "compras" | "parametros" | "reportes">("productos");
   const [query, setQuery] = useState("");
   const [editProduct, setEditProduct] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
@@ -172,23 +171,6 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
     }
   }
 
-  async function handleSimulateImport(providerId: string) {
-    try {
-      const result = await simulateImport(providerId);
-      
-      // Update provider
-      setProviders(prev => prev.map(p => p.id === providerId ? result.provider : p));
-      
-      // Refresh products from server (since costs were updated)
-      // For now, we'll just trigger a page refresh in the background
-      // TODO: Could implement a more sophisticated sync mechanism
-      
-      logChange("provider", providerId, "simulate_import", null, `Affected ${result.affectedProducts} products`);
-    } catch (error) {
-      console.error('Failed to simulate import:', error);
-    }
-  }
-
   function exportCSV(full = false) { 
     exportRowsToCsv(computedProducts, products, providerName, full); 
   }
@@ -234,7 +216,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
           </div>
           <nav className="flex items-center gap-2">
             <TabButton active={tab === "productos"} onClick={() => setTab("productos")}>Productos</TabButton>
-            <TabButton active={tab === "proveedores"} onClick={() => setTab("proveedores")}>Proveedores</TabButton>
+            <TabButton active={tab === "compras"} onClick={() => setTab("compras")}>Compras</TabButton>
             <TabButton active={tab === "parametros"} onClick={() => setTab("parametros")}>Parámetros</TabButton>
             <TabButton active={tab === "reportes"} onClick={() => setTab("reportes")}>Reportes</TabButton>
           </nav>
@@ -259,10 +241,11 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
           />
         )}
 
-        {tab === "proveedores" && (
-          <ProvidersPanel
-            providers={providers}
-            onSimulateImport={handleSimulateImport}
+        {tab === "compras" && (
+          <PurchasesPanel
+            suppliers={providers}
+            products={products}
+            onSuppliersChange={setProviders}
           />
         )}
 

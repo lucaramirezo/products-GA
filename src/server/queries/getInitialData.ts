@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client';
 import { products, tiers, priceParams, categoryRules, providers, auditLog } from '@/db/schema';
-import { desc, isNull } from 'drizzle-orm';
+import { desc, isNull, eq, and } from 'drizzle-orm';
 import type { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
 
 export type Provider = { 
@@ -52,8 +52,8 @@ export async function getInitialData(): Promise<InitialData> {
       // Get all category rules
       db.select().from(categoryRules),
       
-      // Get all providers
-      db.select().from(providers),
+      // Get all active providers
+      db.select().from(providers).where(and(eq(providers.active, true), isNull(providers.deletedAt))),
       
       // Get latest 200 audit entries
       db.select().from(auditLog)
