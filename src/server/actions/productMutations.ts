@@ -152,8 +152,8 @@ export async function createProduct(product: Product): Promise<Product> {
   const db = getDb();
   const pool = getPool();
   
-  // Auto-generate SKU if it's a placeholder (NEW-xxx) or missing
-  const shouldAutoGenerate = !product.sku || product.sku.startsWith('NEW-');
+  // Auto-generate SKU if it's a placeholder (NEW-xxx, QUICK-xxx) or missing/empty
+  const shouldAutoGenerate = !product.sku || product.sku.trim() === '' || product.sku.startsWith('NEW-') || product.sku.startsWith('QUICK-');
   
   if (shouldAutoGenerate) {
     // Find next available SKU to avoid conflicts

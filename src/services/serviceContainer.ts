@@ -4,7 +4,9 @@ import { InMemoryCategoryRulesRepo } from '@/repositories/memory/categoryRulesRe
 import { InMemoryParamsRepo } from '@/repositories/memory/paramsRepo';
 import { InMemoryProvidersRepo } from '@/repositories/memory/providersRepo';
 import { InMemoryAuditRepo } from '@/repositories/memory/auditRepo';
+import { MemoryPurchasesRepo } from '@/repositories/memory/purchasesRepo';
 import { PricingService } from './pricingService';
+import { PurchaseService } from './purchaseService';
 import { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
 
 export interface SeedData { products:Product[]; tiers:Tier[]; categoryRules:CategoryRule[]; params:PriceParams; providers:{id:string;name:string;lastUpdate?:string}[]; }
@@ -16,6 +18,8 @@ export function buildInMemoryServices(seed:SeedData){
   const params = new InMemoryParamsRepo({ ...seed.params });
   const providers = new InMemoryProvidersRepo([...seed.providers]);
   const audit = new InMemoryAuditRepo();
+  const purchases = new MemoryPurchasesRepo();
   const pricing = new PricingService({ products, tiers, categories, params });
-  return { repos:{ products, tiers, categories, params, providers, audit }, services:{ pricing } };
+  const purchaseService = new PurchaseService(purchases, products, providers, audit);
+  return { repos:{ products, tiers, categories, params, providers, audit, purchases }, services:{ pricing, purchases: purchaseService } };
 }

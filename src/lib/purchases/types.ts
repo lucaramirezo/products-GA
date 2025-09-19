@@ -18,6 +18,10 @@ export interface CreatePurchaseItemInput {
   tempWidth?: number;
   tempHeight?: number;
   tempUom?: 'in' | 'cm';
+  // New fields for product creation
+  linkingMode?: 'existing' | 'create' | 'none';
+  newProductCategory?: string;
+  newProductArea?: number;
 }
 
 export interface Purchase {
@@ -46,4 +50,11 @@ export interface PurchaseItem {
   tempUom?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PurchaseWithDetails extends Purchase {
+  supplierName?: string;
+  items: PurchaseItem[];
+  totalAmount: number;
+  itemsCount: number;
 }

@@ -1,25 +1,35 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPurchase } from '@/server/actions/purchaseActions';
+import { getPurchasesList, getPurchaseById } from '@/server/actions/purchaseQueries';
 import { createProvider } from '@/server/actions/providerMutations';
 import { calculateCostPerSqft } from '@/lib/purchases/calculations';
-import type { CreatePurchaseInput, CreatePurchaseItemInput } from '@/lib/purchases/types';
+import type { CreatePurchaseInput, CreatePurchaseItemInput, PurchaseWithDetails } from '@/lib/purchases/types';
 import type { Provider } from '@/server/queries/getInitialData';
-import type { Product } from '@/lib/pricing/types';
+import type { Product, CategoryRule } from '@/lib/pricing/types';
 
 interface PurchasesPanelProps {
   suppliers: Provider[];
   products: Product[];
   onSuppliersChange: (suppliers: Provider[]) => void;
+  categoryRules: CategoryRule[]; // Add category rules for dropdown
 }
 
-export function PurchasesPanel({ suppliers, products, onSuppliersChange }: PurchasesPanelProps) {
-  const [view, setView] = useState<'list' | 'create'>('list');
+export function PurchasesPanel({ suppliers, products, onSuppliersChange, categoryRules }: PurchasesPanelProps) {
+  const [view, setView] = useState<'list' | 'create' | 'view'>('list');
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseWithDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
   const [showNewSupplierForm, setShowNewSupplierForm] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
+  
+  // List state
+  const [purchasesList, setPurchasesList] = useState<PurchaseWithDetails[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [totalPurchases, setTotalPurchases] = useState(0);
   
   // Form state
   const [supplierId, setSupplierId] = useState('');
@@ -37,6 +47,47 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
       appliedToProduct: false,
     }
   ]);
+
+  // Load purchases list
+  useEffect(() => {
+    if (view === 'list') {
+      loadPurchases();
+    }
+  }, [view, searchTerm, selectedSupplier]);
+
+  const loadPurchases = async () => {
+    setListLoading(true);
+    try {
+      const result = await getPurchasesList({
+        limit: 50,
+        offset: 0,
+        search: searchTerm || undefined,
+        supplierId: selectedSupplier || undefined
+      });
+      setPurchasesList(result.purchases);
+      setTotalPurchases(result.total);
+    } catch (error) {
+      console.error('Error loading purchases:', error);
+      alert('Error al cargar las compras: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const loadPurchaseDetails = async (purchaseId: string) => {
+    try {
+      const purchase = await getPurchaseById(purchaseId);
+      if (purchase) {
+        setSelectedPurchase(purchase);
+        setView('view');
+      } else {
+        alert('No se pudo cargar la compra');
+      }
+    } catch (error) {
+      console.error('Error loading purchase details:', error);
+      alert('Error al cargar los detalles de la compra');
+    }
+  };
 
   const resetForm = () => {
     setSupplierId('');
@@ -81,6 +132,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
       amount: 0,
       linked: false,
       appliedToProduct: false,
+      linkingMode: 'none',
     }]);
   };
 
@@ -92,7 +144,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Auto-link logic
+    // Auto-link logic for existing products
     if (field === 'productId' && value) {
       newItems[index].linked = true;
       const product = products.find(p => p.sku === value);
@@ -102,6 +154,22 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
     } else if (field === 'productId' && !value) {
       newItems[index].linked = false;
       newItems[index].appliedToProduct = false;
+    }
+
+    // Clear dependent fields when linking mode changes
+    if (field === 'linkingMode') {
+      if (value === 'none') {
+        newItems[index].productId = undefined;
+        newItems[index].linked = false;
+        newItems[index].newProductCategory = undefined;
+        newItems[index].newProductArea = undefined;
+      } else if (value === 'existing') {
+        newItems[index].newProductCategory = undefined;
+        newItems[index].newProductArea = undefined;
+      } else if (value === 'create') {
+        newItems[index].productId = undefined;
+        newItems[index].linked = false;
+      }
     }
 
     setItems(newItems);
@@ -124,8 +192,63 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
     return item.unit === 'sheet' && !item.productId;
   };
 
+  const getValidationError = (item: CreatePurchaseItemInput): string | null => {
+    if (!item.name.trim()) return null; // Skip validation for empty items
+    
+    if (item.qty <= 0) return 'La cantidad debe ser mayor a 0';
+    if (item.amount < 0) return 'El monto no puede ser negativo';
+    
+    // Validate product linking
+    if (item.linkingMode === 'existing' && !item.productId) {
+      return 'Debe seleccionar un producto para vincularlo';
+    }
+    
+    if (item.linkingMode === 'create') {
+      if (!item.newProductCategory?.trim()) {
+        return 'Se requiere categoría para crear un nuevo producto';
+      }
+      if (!item.newProductArea || item.newProductArea <= 0) {
+        return 'Se requiere área válida para crear un nuevo producto';
+      }
+    }
+    
+    if (item.unit === 'sheet') {
+      if (!item.productId && (!item.tempWidth || !item.tempHeight || !item.tempUom)) {
+        return 'Se requieren dimensiones para unidad "hoja" sin producto';
+      }
+      
+      if (item.tempWidth && item.tempWidth <= 0) return 'El ancho debe ser mayor a 0';
+      if (item.tempHeight && item.tempHeight <= 0) return 'El alto debe ser mayor a 0';
+      
+      // Check if area calculation would be valid
+      const costPerSqft = getCostPerSqft(item);
+      if (item.qty > 0 && item.amount > 0 && costPerSqft === null) {
+        return 'Error en cálculo de área - verifique las dimensiones';
+      }
+    }
+    
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all items
+    const validItems = items.filter(item => item.name.trim());
+    if (validItems.length === 0) {
+      alert('La compra debe tener al menos un artículo válido');
+      return;
+    }
+    
+    // Check for validation errors
+    for (let i = 0; i < validItems.length; i++) {
+      const error = getValidationError(validItems[i]);
+      if (error) {
+        alert(`Error en artículo ${i + 1}: ${error}`);
+        return;
+      }
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -135,7 +258,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
         date: new Date(date),
         currency: currency || undefined,
         notes: notes || undefined,
-        items: items.filter(item => item.name.trim() && item.qty > 0 && item.amount >= 0),
+        items: validItems.filter(item => item.qty > 0 && item.amount >= 0),
       };
 
       await createPurchase(purchaseData);
@@ -143,6 +266,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
       resetForm();
       setView('list');
       alert('Compra creada exitosamente');
+      // List will reload automatically due to useEffect
     } catch (error) {
       alert('Error al crear la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
@@ -314,26 +438,118 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
             </div>
 
             <div className="space-y-4">
-              {items.map((item, index) => (
+              {items.map((item, index) => {
+                const validationError = getValidationError(item);
+                return (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
+                  {validationError && (
+                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                      ⚠️ {validationError}
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                    {/* Product Selection */}
+                    {/* Product Linking Options */}
                     <div className="lg:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Producto (opcional)
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Vinculación de Producto
                       </label>
-                      <select
-                        value={item.productId || ''}
-                        onChange={(e) => updateItem(index, 'productId', e.target.value || undefined)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Sin vincular...</option>
-                        {products.map((product) => (
-                          <option key={product.sku} value={product.sku}>
-                            {product.sku} - {product.name}
-                          </option>
-                        ))}
-                      </select>
+                      
+                      {/* Improved linking mode selection with better layout */}
+                      <div className="grid grid-cols-3 gap-1 mb-3">
+                        <button
+                          type="button"
+                          onClick={() => updateItem(index, 'linkingMode', 'none')}
+                          className={`p-2 text-xs rounded-md border transition-all ${
+                            item.linkingMode === 'none' || !item.linkingMode
+                              ? 'bg-gray-500 text-white border-gray-500'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Sin vincular
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateItem(index, 'linkingMode', 'existing')}
+                          className={`p-2 text-xs rounded-md border transition-all ${
+                            item.linkingMode === 'existing'
+                              ? 'bg-blue-500 text-white border-blue-500'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Existente
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateItem(index, 'linkingMode', 'create')}
+                          className={`p-2 text-xs rounded-md border transition-all ${
+                            item.linkingMode === 'create'
+                              ? 'bg-green-500 text-white border-green-500'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Crear nuevo
+                        </button>
+                      </div>
+                        
+                      {/* Existing Product Selection */}
+                      {item.linkingMode === 'existing' && (
+                        <select
+                          value={item.productId || ''}
+                          onChange={(e) => updateItem(index, 'productId', e.target.value || undefined)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Seleccionar producto...</option>
+                          {products.map((product) => (
+                            <option key={product.sku} value={product.sku}>
+                              {product.sku} - {product.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      
+                      {/* New Product Creation Form */}
+                      {item.linkingMode === 'create' && (
+                        <div className="space-y-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                          <div className="text-xs font-medium text-green-800 mb-2">Nuevo Producto</div>
+                          
+                          {/* Category Dropdown */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Categoría *</label>
+                            <select
+                              value={item.newProductCategory || ''}
+                              onChange={(e) => updateItem(index, 'newProductCategory', e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            >
+                              <option value="">Seleccionar categoría...</option>
+                              {categoryRules.map((rule) => (
+                                <option key={rule.category} value={rule.category}>
+                                  {rule.category}
+                                </option>
+                              ))}
+                              <option value="General">General</option>
+                              <option value="LargeFormat">LargeFormat</option>
+                              <option value="Printing">Printing</option>
+                              <option value="Signage">Signage</option>
+                            </select>
+                          </div>
+                          
+                          {/* Area Input with better step */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Área (sq ft) *</label>
+                            <input
+                              type="number"
+                              value={item.newProductArea || ''}
+                              onChange={(e) => updateItem(index, 'newProductArea', parseFloat(e.target.value) || 0)}
+                              placeholder="Ej: 12, 24, 48..."
+                              min="1"
+                              step="1"
+                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                            <div className="text-xs text-gray-500 mt-1">Valores comunes: 12, 24, 36, 48 sq ft</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Name */}
@@ -470,19 +686,37 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
                       })()}
 
                       {/* Apply to product checkbox */}
-                      {canApplyToProduct(item) && (
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={item.appliedToProduct}
-                            onChange={(e) => updateItem(index, 'appliedToProduct', e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            Actualizar precio del producto ahora
-                          </span>
-                        </label>
-                      )}
+                      {canApplyToProduct(item) && (() => {
+                        const costPerSqft = getCostPerSqft(item);
+                        const product = products.find(p => p.sku === item.productId);
+                        return (
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={item.appliedToProduct}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                if (checked && costPerSqft !== null && product) {
+                                  const confirmed = window.confirm(
+                                    `¿Vas a actualizar el coste de "${product.name}" (${product.sku}) a $${costPerSqft.toFixed(4)}/ft²?\n\n` +
+                                    `Coste actual: $${product.cost_sqft}/ft²\n` +
+                                    `Nuevo coste: $${costPerSqft.toFixed(4)}/ft²`
+                                  );
+                                  if (confirmed) {
+                                    updateItem(index, 'appliedToProduct', true);
+                                  }
+                                } else {
+                                  updateItem(index, 'appliedToProduct', checked);
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              Actualizar precio del producto ahora
+                            </span>
+                          </label>
+                        );
+                      })()}
                     </div>
 
                     {/* Remove button */}
@@ -497,7 +731,8 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -515,13 +750,193 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || items.every(item => !item.name.trim())}
+              disabled={isSubmitting || items.every(item => !item.name.trim()) || items.some(item => getValidationError(item) !== null)}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? 'Guardando...' : 'Crear Compra'}
             </button>
           </div>
         </form>
+      </div>
+    );
+  }
+
+  // View purchase details
+  if (view === 'view' && selectedPurchase) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-semibold">Detalles de Compra</h2>
+            <p className="text-gray-600 text-sm">Información de la factura {selectedPurchase.invoiceNo || 'sin número'}</p>
+          </div>
+          <button
+            onClick={() => {
+              setView('list');
+              setSelectedPurchase(null);
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5m7-7l-7 7 7 7"/>
+            </svg>
+            Volver a la lista
+          </button>
+        </div>
+
+        {/* Purchase Header Info */}
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">Información General</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+              <div className="text-sm text-gray-900">
+                {new Date(selectedPurchase.date).toLocaleDateString()}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+              <div className="text-sm text-gray-900">
+                {selectedPurchase.supplierName || 'Sin proveedor'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">No. Factura</label>
+              <div className="text-sm text-gray-900">
+                {selectedPurchase.invoiceNo || '-'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Moneda</label>
+              <div className="text-sm text-gray-900">
+                {selectedPurchase.currency || 'USD'}
+              </div>
+            </div>
+          </div>
+          
+          {selectedPurchase.notes && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
+                {selectedPurchase.notes}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Purchase Items */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold">Artículos ({selectedPurchase.itemsCount})</h3>
+          </div>
+          
+          <div className="overflow-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nombre
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Producto Vinculado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cantidad
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Unidad
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Monto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Costo/sq ft
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {selectedPurchase.items.map((item, index) => {
+                  const product = products.find(p => p.sku === item.productId);
+                  // Convert PurchaseItem to CreatePurchaseItemInput for calculation
+                  const itemForCalculation: CreatePurchaseItemInput = {
+                    productId: item.productId,
+                    name: item.name,
+                    qty: item.qty,
+                    unit: item.unit,
+                    amount: item.amount,
+                    linked: item.linked,
+                    appliedToProduct: item.appliedToProduct,
+                    tempWidth: item.tempWidth,
+                    tempHeight: item.tempHeight,
+                    tempUom: item.tempUom as 'in' | 'cm' | undefined
+                  };
+                  const costPerSqft = calculateCostPerSqft(itemForCalculation, product?.area_sqft);
+                  
+                  return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.productId ? (
+                          <span className="text-blue-600">
+                            {item.productId} {product ? `- ${product.name}` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Sin vincular</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.qty}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.unit}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                        ${item.amount.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        {costPerSqft ? `$${costPerSqft.toFixed(4)}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          {item.linked && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Vinculado
+                            </span>
+                          )}
+                          {item.appliedToProduct && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Costo aplicado
+                            </span>
+                          )}
+                          {!item.linked && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Sin vincular
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Summary */}
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-900">Total:</span>
+              <span className="text-lg font-semibold text-gray-900">
+                ${selectedPurchase.totalAmount.toFixed(2)} {selectedPurchase.currency || 'USD'}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -541,12 +956,132 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange }: Purch
           Nueva Compra
         </button>
       </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="No. factura, notas..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Proveedor
+            </label>
+            <select
+              value={selectedSupplier}
+              onChange={(e) => setSelectedSupplier(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Todos los proveedores</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={loadPurchases}
+              disabled={listLoading}
+              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+            >
+              {listLoading ? 'Buscando...' : 'Actualizar'}
+            </button>
+          </div>
+        </div>
+      </div>
       
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
-        <p className="text-gray-500 text-center py-8">
-          Lista de compras próximamente disponible.<br />
-          Por ahora, puedes crear una nueva compra usando el botón de arriba.
-        </p>
+      {/* Purchases List */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        {listLoading ? (
+          <div className="p-8 text-center text-gray-500">
+            Cargando compras...
+          </div>
+        ) : purchasesList.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            No se encontraron compras.
+            <br />
+            <button
+              onClick={() => setView('create')}
+              className="text-blue-600 hover:text-blue-700 underline mt-2"
+            >
+              Crear la primera compra
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold">
+                {totalPurchases} compra{totalPurchases !== 1 ? 's' : ''} encontrada{totalPurchases !== 1 ? 's' : ''}
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Proveedor
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      No. Factura
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Artículos
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {purchasesList.map((purchase) => (
+                    <tr key={purchase.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(purchase.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {purchase.supplierName || 'Sin proveedor'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {purchase.invoiceNo || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {purchase.itemsCount} artículo{purchase.itemsCount !== 1 ? 's' : ''}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                        ${purchase.totalAmount.toFixed(2)} {purchase.currency || 'USD'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => loadPurchaseDetails(purchase.id)}
+                          className="text-blue-600 hover:text-blue-700 mr-4"
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

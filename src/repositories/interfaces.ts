@@ -1,4 +1,5 @@
 import { Product, Tier, CategoryRule, PriceParams } from '@/lib/pricing/types';
+import { Purchase, PurchaseItem, PurchaseWithDetails } from '@/lib/purchases/types';
 
 export interface ProductsRepo {
   list(): Promise<Product[]>;
@@ -35,6 +36,16 @@ export interface ProvidersRepo {
 export interface AuditRepo {
   insert(entries:AuditEntry[]):Promise<void>;
   latest(limit:number):Promise<AuditEntry[]>;
+}
+
+export interface PurchasesRepo {
+  list(options?: { limit?: number; offset?: number; search?: string; supplierId?: string; dateFrom?: Date; dateTo?: Date }): Promise<{ purchases: PurchaseWithDetails[]; total: number }>;
+  getById(id: string): Promise<PurchaseWithDetails | null>;
+  create(purchase: Omit<Purchase, 'id' | 'createdAt' | 'updatedAt'>, items: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>[]): Promise<Purchase>;
+  update(id: string, patch: Partial<Purchase>): Promise<Purchase>;
+  addItem(purchaseId: string, item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>): Promise<PurchaseItem>;
+  updateItem(itemId: string, patch: Partial<PurchaseItem>): Promise<PurchaseItem>;
+  deleteItem(itemId: string): Promise<void>;
 }
 
 export interface AuditEntry { entity:string; id:string; field:string; before:unknown; after:unknown; date:string; user:string; }

@@ -246,6 +246,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
             suppliers={providers}
             products={products}
             onSuppliersChange={setProviders}
+            categoryRules={categoryRules}
           />
         )}
 
