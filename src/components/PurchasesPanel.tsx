@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createPurchase } from '@/server/actions/purchaseActions';
+import { createPurchase, updatePurchase, deletePurchase } from '@/server/actions/purchaseActions';
 import { getPurchasesList, getPurchaseById } from '@/server/actions/purchaseQueries';
 import { createProvider } from '@/server/actions/providerMutations';
 import { calculateCostPerSqft } from '@/lib/purchases/calculations';
@@ -17,14 +17,15 @@ interface PurchasesPanelProps {
 }
 
 export function PurchasesPanel({ suppliers, products, onSuppliersChange, categoryRules }: PurchasesPanelProps) {
-  const [view, setView] = useState<'list' | 'create' | 'view'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'view' | 'edit'>('list');
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseWithDetails | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<PurchaseWithDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
   const [showNewSupplierForm, setShowNewSupplierForm] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
-  
-  // List state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [purchasesList, setPurchasesList] = useState<PurchaseWithDetails[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,6 +88,68 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       console.error('Error loading purchase details:', error);
       alert('Error al cargar los detalles de la compra');
     }
+  };
+
+  const handleEditPurchase = async (purchaseId: string) => {
+    try {
+      const purchase = await getPurchaseById(purchaseId);
+      if (purchase) {
+        setEditingPurchase(purchase);
+        // Populate form with purchase data
+        setSupplierId(purchase.supplierId || '');
+        setInvoiceNo(purchase.invoiceNo || '');
+        setDate(purchase.date.toISOString().split('T')[0]);
+        setCurrency(purchase.currency || 'USD');
+        setNotes(purchase.notes || '');
+        
+        // Convert purchase items to CreatePurchaseItemInput format
+        const formItems: CreatePurchaseItemInput[] = purchase.items.map(item => ({
+          name: item.name,
+          qty: item.qty,
+          unit: item.unit,
+          amount: item.amount,
+          linked: item.linked,
+          appliedToProduct: item.appliedToProduct,
+          productId: item.productId,
+          tempWidth: item.tempWidth,
+          tempHeight: item.tempHeight,
+          tempUom: item.tempUom as 'in' | 'cm' | undefined,
+          linkingMode: item.productId ? 'existing' : 'none'
+        }));
+        setItems(formItems);
+        setView('edit');
+      } else {
+        alert('No se pudo cargar la compra para editar');
+      }
+    } catch (error) {
+      console.error('Error loading purchase for editing:', error);
+      alert('Error al cargar la compra para editar');
+    }
+  };
+
+  const handleDeletePurchase = async (purchaseId: string) => {
+    if (!showDeleteConfirm || showDeleteConfirm !== purchaseId) {
+      setShowDeleteConfirm(purchaseId);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deletePurchase(purchaseId);
+      setShowDeleteConfirm(null);
+      // Reload the list
+      await loadPurchases();
+      alert('Compra eliminada exitosamente');
+    } catch (error) {
+      console.error('Error deleting purchase:', error);
+      alert('Error al eliminar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(null);
   };
 
   const resetForm = () => {
@@ -252,40 +315,61 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
     setIsSubmitting(true);
 
     try {
-      const purchaseData: CreatePurchaseInput = {
-        supplierId: supplierId || undefined,
-        invoiceNo: invoiceNo || undefined,
-        date: new Date(date),
-        currency: currency || undefined,
-        notes: notes || undefined,
-        items: validItems.filter(item => item.qty > 0 && item.amount >= 0),
-      };
+      if (view === 'edit' && editingPurchase) {
+        // Update existing purchase
+        const updateData = {
+          supplierId: supplierId || undefined,
+          invoiceNo: invoiceNo || undefined,
+          date: new Date(date),
+          currency: currency || undefined,
+          notes: notes || undefined,
+        };
 
-      await createPurchase(purchaseData);
+        await updatePurchase(editingPurchase.id, updateData);
+        alert('Compra actualizada exitosamente');
+      } else {
+        // Create new purchase
+        const purchaseData: CreatePurchaseInput = {
+          supplierId: supplierId || undefined,
+          invoiceNo: invoiceNo || undefined,
+          date: new Date(date),
+          currency: currency || undefined,
+          notes: notes || undefined,
+          items: validItems.filter(item => item.qty > 0 && item.amount >= 0),
+        };
+
+        await createPurchase(purchaseData);
+        alert('Compra creada exitosamente');
+      }
       
       resetForm();
+      setEditingPurchase(null);
       setView('list');
-      alert('Compra creada exitosamente');
       // List will reload automatically due to useEffect
     } catch (error) {
-      alert('Error al crear la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      const action = view === 'edit' ? 'actualizar' : 'crear';
+      alert(`Error al ${action} la compra: ` + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (view === 'create') {
+  if (view === 'create' || view === 'edit') {
+    const isEditing = view === 'edit';
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-semibold">Nueva Compra</h2>
-            <p className="text-gray-600 text-sm">Registrar factura manual de proveedor</p>
+            <h2 className="text-xl font-semibold">{isEditing ? 'Editar Compra' : 'Nueva Compra'}</h2>
+            <p className="text-gray-600 text-sm">
+              {isEditing ? 'Modificar información de la compra' : 'Registrar factura manual de proveedor'}
+            </p>
           </div>
           <button
             onClick={() => {
               setView('list');
               resetForm();
+              setEditingPurchase(null);
             }}
             className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
           >
@@ -753,7 +837,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
               disabled={isSubmitting || items.every(item => !item.name.trim()) || items.some(item => getValidationError(item) !== null)}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? 'Guardando...' : 'Crear Compra'}
+              {isSubmitting ? 'Guardando...' : (isEditing ? 'Actualizar Compra' : 'Crear Compra')}
             </button>
           </div>
         </form>
@@ -1068,12 +1152,54 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                         ${purchase.totalAmount.toFixed(2)} {purchase.currency || 'USD'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => loadPurchaseDetails(purchase.id)}
-                          className="text-blue-600 hover:text-blue-700 mr-4"
-                        >
-                          Ver
-                        </button>
+                        <div className="flex gap-1">
+                          {/* Ver - Azul */}
+                          <button
+                            onClick={() => loadPurchaseDetails(purchase.id)}
+                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                            title="Ver detalles"
+                          >
+                            Ver
+                          </button>
+                          
+                          {/* Editar - Amarillo */}
+                          <button
+                            onClick={() => handleEditPurchase(purchase.id)}
+                            className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 transition-colors"
+                            title="Editar compra"
+                          >
+                            Editar
+                          </button>
+                          
+                          {/* Eliminar - Rojo */}
+                          {showDeleteConfirm === purchase.id ? (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleDeletePurchase(purchase.id)}
+                                disabled={isDeleting}
+                                className="px-2 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-400 transition-colors"
+                                title="Confirmar eliminación"
+                              >
+                                {isDeleting ? '...' : '✓'}
+                              </button>
+                              <button
+                                onClick={cancelDelete}
+                                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                                title="Cancelar"
+                              >
+                                ✗
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleDeletePurchase(purchase.id)}
+                              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                              title="Eliminar compra"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

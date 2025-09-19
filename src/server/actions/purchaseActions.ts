@@ -23,6 +23,40 @@ export async function createPurchase(input: CreatePurchaseInput): Promise<Purcha
 }
 
 /**
+ * Update an existing purchase
+ */
+export async function updatePurchase(id: string, input: Partial<Purchase>): Promise<Purchase> {
+  try {
+    const { services } = await buildDbServices();
+    const purchase = await services.purchases.update(id, input) as Purchase;
+
+    revalidatePath('/');
+    revalidatePath('/compras');
+    
+    return purchase;
+  } catch (error) {
+    console.error('Error updating purchase:', error);
+    throw new Error('Error al actualizar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+  }
+}
+
+/**
+ * Delete a purchase (soft delete)
+ */
+export async function deletePurchase(id: string): Promise<void> {
+  try {
+    const { services } = await buildDbServices();
+    await services.purchases.delete(id);
+
+    revalidatePath('/');
+    revalidatePath('/compras');
+  } catch (error) {
+    console.error('Error deleting purchase:', error);
+    throw new Error('Error al eliminar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+  }
+}
+
+/**
  * Get all purchases with basic info
  */
 export async function getPurchases() {

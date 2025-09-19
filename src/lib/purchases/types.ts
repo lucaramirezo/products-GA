@@ -7,6 +7,15 @@ export interface CreatePurchaseInput {
   items: CreatePurchaseItemInput[];
 }
 
+export interface UpdatePurchaseInput {
+  supplierId?: string;
+  invoiceNo?: string;
+  date?: Date;
+  currency?: string;
+  notes?: string;
+  items?: CreatePurchaseItemInput[];
+}
+
 export interface CreatePurchaseItemInput {
   productId?: string;
   name: string;

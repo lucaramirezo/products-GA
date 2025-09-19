@@ -164,6 +164,25 @@ export class MemoryPurchasesRepo implements PurchasesRepo {
     return updatedItem;
   }
 
+  async delete(id: string): Promise<void> {
+    const index = purchases.findIndex(p => p.id === id);
+    if (index === -1) {
+      throw new Error(`Compra con ID ${id} no encontrada`);
+    }
+
+    // Remove all items for this purchase
+    const itemsToRemove = purchaseItems.filter(item => item.purchaseId === id);
+    itemsToRemove.forEach(item => {
+      const itemIndex = purchaseItems.findIndex(i => i.id === item.id);
+      if (itemIndex !== -1) {
+        purchaseItems.splice(itemIndex, 1);
+      }
+    });
+
+    // Remove the purchase
+    purchases.splice(index, 1);
+  }
+
   async deleteItem(itemId: string): Promise<void> {
     const index = purchaseItems.findIndex(item => item.id === itemId);
     if (index === -1) {

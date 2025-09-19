@@ -43,6 +43,7 @@ export interface PurchasesRepo {
   getById(id: string): Promise<PurchaseWithDetails | null>;
   create(purchase: Omit<Purchase, 'id' | 'createdAt' | 'updatedAt'>, items: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>[]): Promise<Purchase>;
   update(id: string, patch: Partial<Purchase>): Promise<Purchase>;
+  delete(id: string): Promise<void>;
   addItem(purchaseId: string, item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>): Promise<PurchaseItem>;
   updateItem(itemId: string, patch: Partial<PurchaseItem>): Promise<PurchaseItem>;
   deleteItem(itemId: string): Promise<void>;

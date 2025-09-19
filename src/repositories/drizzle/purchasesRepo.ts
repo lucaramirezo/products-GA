@@ -345,6 +345,22 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
     };
   }
 
+  async delete(id: string): Promise<void> {
+    const db = getDb();
+    
+    await db.transaction(async (tx) => {
+      // First delete all items
+      await tx.delete(purchaseItems).where(eq(purchaseItems.purchaseId, id));
+      
+      // Then delete the purchase
+      const result = await tx.delete(purchases).where(eq(purchases.id, id));
+      
+      if (result.rowCount === 0) {
+        throw new Error(`Compra con ID ${id} no encontrada`);
+      }
+    });
+  }
+
   async deleteItem(itemId: string): Promise<void> {
     const db = getDb();
     

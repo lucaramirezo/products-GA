@@ -24,6 +24,8 @@ interface PurchaseLike {
   list: (options?: { limit?: number; offset?: number; search?: string; supplierId?: string; dateFrom?: Date; dateTo?: Date }) => Promise<{ purchases: PurchaseWithDetails[]; total: number }>; 
   getById: (id: string) => Promise<PurchaseWithDetails | null>; 
   save: (dto: unknown) => Promise<unknown>; 
+  update: (id: string, patch: unknown) => Promise<unknown>;
+  delete: (id: string) => Promise<void>;
 }
 
 interface Container { 
@@ -49,6 +51,16 @@ export function buildDbServices(){
     const purchases = new DrizzlePurchasesRepo();
     const pricing = new PricingService({ products, tiers, categories, params });
     const purchaseService = new PurchaseService(purchases, products, providers, audit);
+    
+    // Create a wrapper to match PurchaseLike interface
+    const purchaseServiceWrapper = {
+      list: purchaseService.list.bind(purchaseService),
+      getById: purchaseService.getById.bind(purchaseService), 
+      save: purchaseService.save.bind(purchaseService),
+      update: purchaseService.updatePurchase.bind(purchaseService),
+      delete: purchaseService.deletePurchase.bind(purchaseService)
+    };
+    
     // Decorate pricing with simple cache for getPriceBySku
     const cachedPricing = {
       async getPriceBySku(sku:string, toggles:{ink:boolean;lam:boolean;cut:boolean;sheets?:number;}){
@@ -60,7 +72,7 @@ export function buildDbServices(){
         return value;
       }
     };
-    return { db, repos:{ products, tiers, categories, params, providers, audit, priceCache: priceCacheRepo, purchases }, services:{ pricing: cachedPricing, purchases: purchaseService } } as Container;
+    return { db, repos:{ products, tiers, categories, params, providers, audit, priceCache: priceCacheRepo, purchases }, services:{ pricing: cachedPricing, purchases: purchaseServiceWrapper } } as Container;
   })();
   return _containerPromise;
 }

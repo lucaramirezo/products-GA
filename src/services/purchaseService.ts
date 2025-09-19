@@ -269,4 +269,8 @@ export class PurchaseService {
   async updatePurchase(id: string, patch: Partial<Purchase>) {
     return this.purchasesRepo.update(id, patch);
   }
+
+  async deletePurchase(id: string) {
+    return this.purchasesRepo.delete(id);
+  }
 }
