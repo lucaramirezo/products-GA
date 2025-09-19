@@ -1,1 +1,0 @@
-ALTER TABLE "purchase_items" ALTER COLUMN "product_id" SET DATA TYPE text;
