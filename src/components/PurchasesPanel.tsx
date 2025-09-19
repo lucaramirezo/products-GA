@@ -24,7 +24,9 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
   const [showNewSupplierForm, setShowNewSupplierForm] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetPurchase, setDeleteTargetPurchase] = useState<PurchaseWithDetails | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [purchasesList, setPurchasesList] = useState<PurchaseWithDetails[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -127,19 +129,24 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
     }
   };
 
-  const handleDeletePurchase = async (purchaseId: string) => {
-    if (!showDeleteConfirm || showDeleteConfirm !== purchaseId) {
-      setShowDeleteConfirm(purchaseId);
+  const handleDeletePurchase = async (purchase: PurchaseWithDetails) => {
+    setDeleteTargetPurchase(purchase);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePurchase = async () => {
+    if (!deleteTargetPurchase || deleteConfirmText !== 'CONFIRMAR') {
       return;
     }
 
     setIsDeleting(true);
     try {
-      await deletePurchase(purchaseId);
-      setShowDeleteConfirm(null);
-      // Reload the list
+      await deletePurchase(deleteTargetPurchase.id);
+      setShowDeleteModal(false);
+      setDeleteTargetPurchase(null);
+      setDeleteConfirmText('');
+      // Reload the list silently
       await loadPurchases();
-      alert('Compra eliminada exitosamente');
     } catch (error) {
       console.error('Error deleting purchase:', error);
       alert('Error al eliminar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
@@ -149,7 +156,9 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
   };
 
   const cancelDelete = () => {
-    setShowDeleteConfirm(null);
+    setShowDeleteModal(false);
+    setDeleteTargetPurchase(null);
+    setDeleteConfirmText('');
   };
 
   const resetForm = () => {
@@ -326,7 +335,6 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
         };
 
         await updatePurchase(editingPurchase.id, updateData);
-        alert('Compra actualizada exitosamente');
       } else {
         // Create new purchase
         const purchaseData: CreatePurchaseInput = {
@@ -339,7 +347,6 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
         };
 
         await createPurchase(purchaseData);
-        alert('Compra creada exitosamente');
       }
       
       resetForm();
@@ -1172,33 +1179,13 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                           </button>
                           
                           {/* Eliminar - Rojo */}
-                          {showDeleteConfirm === purchase.id ? (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => handleDeletePurchase(purchase.id)}
-                                disabled={isDeleting}
-                                className="px-2 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-400 transition-colors"
-                                title="Confirmar eliminación"
-                              >
-                                {isDeleting ? '...' : '✓'}
-                              </button>
-                              <button
-                                onClick={cancelDelete}
-                                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                                title="Cancelar"
-                              >
-                                ✗
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handleDeletePurchase(purchase.id)}
-                              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
-                              title="Eliminar compra"
-                            >
-                              Eliminar
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeletePurchase(purchase)}
+                            className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                            title="Eliminar compra"
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1209,6 +1196,50 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
           </>
         )}
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deleteTargetPurchase && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelDelete} />
+          <div className="relative bg-white rounded-lg p-6 w-96 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-4 text-red-600">Confirmar eliminación</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Para confirmar la eliminación de la compra{' '}
+              <strong>
+                {deleteTargetPurchase.invoiceNo || `#${deleteTargetPurchase.id.slice(-6)}`}
+              </strong>
+              {' '}del proveedor{' '}
+              <strong>{deleteTargetPurchase.supplierName || 'Sin proveedor'}</strong>, 
+              escriba exactamente:
+            </p>
+            <p className="font-mono text-sm bg-slate-100 p-2 rounded mb-4 text-center">CONFIRMAR</p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Escriba CONFIRMAR aquí"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 text-sm rounded border border-slate-300 hover:bg-slate-50"
+                disabled={isDeleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeletePurchase}
+                disabled={deleteConfirmText !== 'CONFIRMAR' || isDeleting}
+                className="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar compra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
