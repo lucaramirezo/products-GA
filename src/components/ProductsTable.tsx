@@ -34,20 +34,20 @@ function getCostSource(productSku: string, audit: AuditEntry[]): CostSourceInfo 
   }
 
   // Check if this audit entry has purchase information in the 'after' field
-  const afterData = lastCostAudit.after as any;
+  const afterData = lastCostAudit.after as Record<string, unknown>;
   if (afterData && typeof afterData === 'object' && afterData.source === 'purchase') {
     return {
       source: 'FACTURA',
       purchase: {
-        id: afterData.purchase_id,
-        invoice_no: afterData.invoice_no,
-        supplier_name: afterData.supplier_name,
+        id: String(afterData.purchase_id || ''),
+        invoice_no: afterData.invoice_no ? String(afterData.invoice_no) : undefined,
+        supplier_name: afterData.supplier_name ? String(afterData.supplier_name) : undefined,
         date: lastCostAudit.date,
-        item_name: afterData.item_name,
-        quantity: afterData.quantity,
-        area_sqft_per_unit: afterData.area_sqft_per_unit,
-        unit_price: afterData.unit_price,
-        cost_ft2_line: afterData.cost_ft2_line
+        item_name: String(afterData.item_name || ''),
+        quantity: Number(afterData.quantity || 0),
+        area_sqft_per_unit: Number(afterData.area_sqft_per_unit || 0),
+        unit_price: Number(afterData.unit_price || 0),
+        cost_ft2_line: Number(afterData.cost_ft2_line || 0)
       }
     };
   }

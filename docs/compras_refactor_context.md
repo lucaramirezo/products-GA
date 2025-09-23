@@ -184,6 +184,43 @@ areaSqft: item.areaSqft?.toString() || null,
 - ✅ View purchases → area displayed properly
 - ✅ Product creation from purchases → no validation errors
 
+### Invoice Number in Purchase Info Panel Bug (RESOLVED ✅)
+
+**Problem**: When applying costs from purchases to products, the purchase info panel in products table showed all details correctly except the invoice number was missing or showing as "S/N".
+
+**Root Cause**: The audit log entry for cost updates was missing the `invoice_no` field from the purchase data.
+
+**Symptoms**:
+- ✅ Purchase date, supplier, and cost details displayed correctly
+- ❌ Invoice number showing as "S/N" instead of actual invoice number
+- ✅ Cost source badge correctly showed "FACTURA"
+
+**Solution Applied**:
+```typescript
+// Enhanced audit log entry in src/services/purchaseService.ts
+const auditAfter = {
+  cost_sqft: newCostSqft,
+  source: 'purchase',
+  purchase_id: purchaseId,
+  invoice_no: purchaseData?.invoiceNo || purchaseDetails?.invoiceNo || null, // ✅ ADDED
+  purchase_date: (purchaseData?.date || purchaseDetails?.date)?.toISOString() || null,
+  supplier_name: supplierName || purchaseDetails?.supplierName || null,
+  // ... other fields
+};
+```
+
+**Technical Details**:
+- Modified `applyProductCostUpdates()` to accept purchase data directly during creation
+- Added fallback to fetch purchase details when updating existing purchases
+- Enhanced audit entries with complete purchase context including invoice number
+- Updated ProductsTable type casting to handle audit data properly
+
+**Validation**:
+- ✅ New purchases → invoice number appears in product cost info panel
+- ✅ Existing purchase edits → invoice number maintained
+- ✅ Purchase info panel → all fields display correctly including invoice number
+- ✅ Cost source tooltips → show complete purchase information
+
 ## 🎨 UI Design Patterns & Guidelines
 
 ### Form Layout Standards

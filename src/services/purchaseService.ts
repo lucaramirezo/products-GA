@@ -89,7 +89,11 @@ export class PurchaseService {
     );
 
     // Apply cost updates to products if requested
-    await this.applyProductCostUpdates(dto.items, purchase.id);
+    await this.applyProductCostUpdates(dto.items, purchase.id, {
+      invoiceNo: dto.invoiceNo,
+      date: dto.date,
+      supplierId: dto.supplierId
+    });
 
     return purchase;
   }
@@ -198,8 +202,38 @@ export class PurchaseService {
     return calculateCostPerSqft(item);
   }
 
-  private async applyProductCostUpdates(items: CreatePurchaseItemInput[], purchaseId?: string): Promise<void> {
+  private async applyProductCostUpdates(
+    items: CreatePurchaseItemInput[], 
+    purchaseId?: string,
+    purchaseData?: {
+      invoiceNo?: string;
+      date: Date;
+      supplierId?: string;
+    }
+  ): Promise<void> {
     const auditEntries = [];
+
+    // Get purchase details if purchaseId is provided and no purchaseData
+    let purchaseDetails = null;
+    let supplierName = null;
+    
+    if (purchaseId && !purchaseData) {
+      try {
+        purchaseDetails = await this.purchasesRepo.getById(purchaseId);
+      } catch (error) {
+        console.error(`Error getting purchase details for ${purchaseId}:`, error);
+      }
+    } else if (purchaseData) {
+      // Get supplier name if we have supplierId
+      if (purchaseData.supplierId) {
+        try {
+          const supplier = await this.providersRepo.get(purchaseData.supplierId);
+          supplierName = supplier?.name || null;
+        } catch (error) {
+          console.error(`Error getting supplier details for ${purchaseData.supplierId}:`, error);
+        }
+      }
+    }
 
     for (const item of items) {
       if (item.appliedToProduct && item.linked && item.productId) {
@@ -233,6 +267,9 @@ export class PurchaseService {
             cost_sqft: newCostSqft,
             source: 'purchase',
             purchase_id: purchaseId,
+            invoice_no: purchaseData?.invoiceNo || purchaseDetails?.invoiceNo || null,
+            purchase_date: (purchaseData?.date || purchaseDetails?.date)?.toISOString() || null,
+            supplier_name: supplierName || purchaseDetails?.supplierName || null,
             item_name: item.name,
             quantity: item.qty,
             area_sqft_per_unit: item.areaSqft,
