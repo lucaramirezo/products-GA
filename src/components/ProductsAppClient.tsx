@@ -255,6 +255,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
             params={params}
             tiers={tiers}
             categoryRules={categoryRules}
+            products={products}
             onUpdateParams={handleUpdateParams}
             onUpdateTier={handleUpdateTier}
             onUpsertCategoryRule={handleUpsertCategoryRule}
