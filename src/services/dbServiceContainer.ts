@@ -25,6 +25,7 @@ interface PurchaseLike {
   getById: (id: string) => Promise<PurchaseWithDetails | null>; 
   save: (dto: unknown) => Promise<unknown>; 
   update: (id: string, patch: unknown) => Promise<unknown>;
+  updateWithItems: (id: string, purchase: unknown, items?: unknown) => Promise<unknown>;
   delete: (id: string) => Promise<void>;
 }
 
@@ -58,6 +59,7 @@ export function buildDbServices(){
       getById: purchaseService.getById.bind(purchaseService), 
       save: purchaseService.save.bind(purchaseService),
       update: purchaseService.updatePurchase.bind(purchaseService),
+      updateWithItems: purchaseService.updatePurchaseWithItems.bind(purchaseService),
       delete: purchaseService.deletePurchase.bind(purchaseService)
     };
     

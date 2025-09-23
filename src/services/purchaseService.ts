@@ -1,5 +1,5 @@
 import { PurchasesRepo, ProductsRepo, ProvidersRepo, AuditRepo } from '@/repositories/interfaces';
-import { Purchase, CreatePurchaseInput, CreatePurchaseItemInput } from '@/lib/purchases/types';
+import { Purchase, PurchaseItem, CreatePurchaseInput, CreatePurchaseItemInput } from '@/lib/purchases/types';
 import { calculateCostPerSqft } from '@/lib/purchases/calculations';
 import { createQuickProduct, QuickProductInput } from '@/server/actions/quickProductActions';
 
@@ -77,6 +77,8 @@ export class PurchaseService {
         name: item.name,
         qty: item.qty,
         unit: item.unit,
+        areaSqft: item.areaSqft,
+        unitPrice: item.unitPrice,
         amount: item.amount,
         linked: item.linked || false,
         appliedToProduct: item.appliedToProduct || false,
@@ -87,7 +89,7 @@ export class PurchaseService {
     );
 
     // Apply cost updates to products if requested
-    await this.applyProductCostUpdates(dto.items);
+    await this.applyProductCostUpdates(dto.items, purchase.id);
 
     return purchase;
   }
@@ -196,7 +198,7 @@ export class PurchaseService {
     return calculateCostPerSqft(item);
   }
 
-  private async applyProductCostUpdates(items: CreatePurchaseItemInput[]): Promise<void> {
+  private async applyProductCostUpdates(items: CreatePurchaseItemInput[], purchaseId?: string): Promise<void> {
     const auditEntries = [];
 
     for (const item of items) {
@@ -221,18 +223,34 @@ export class PurchaseService {
             cost_sqft: newCostSqft
           });
 
-          // Prepare audit entry
+          // Prepare enhanced audit entry with purchase context
+          const auditBefore = {
+            cost_sqft: oldCostSqft,
+            source: 'manual'
+          };
+
+          const auditAfter = {
+            cost_sqft: newCostSqft,
+            source: 'purchase',
+            purchase_id: purchaseId,
+            item_name: item.name,
+            quantity: item.qty,
+            area_sqft_per_unit: item.areaSqft,
+            unit_price: item.unitPrice,
+            cost_ft2_line: newCostSqft
+          };
+
           auditEntries.push({
             entity: 'products',
             id: item.productId,
             field: 'cost_sqft',
-            before: oldCostSqft,
-            after: newCostSqft,
+            before: auditBefore,
+            after: auditAfter,
             date: new Date().toISOString(),
             user: 'system' // TODO: Get actual user from session
           });
 
-          console.log(`Updated product ${item.productId} cost from ${oldCostSqft} to ${newCostSqft}`);
+          console.log(`Updated product ${item.productId} cost from ${oldCostSqft} to ${newCostSqft} (from purchase ${purchaseId})`);
         } catch (error) {
           console.error(`Error updating product ${item.productId} cost:`, error);
           throw new Error(`Error al actualizar el costo del producto ${item.productId}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -268,6 +286,47 @@ export class PurchaseService {
 
   async updatePurchase(id: string, patch: Partial<Purchase>) {
     return this.purchasesRepo.update(id, patch);
+  }
+
+  async updatePurchaseWithItems(
+    id: string, 
+    purchase: Partial<Purchase>, 
+    items?: CreatePurchaseItemInput[]
+  ) {
+    // Handle product creation for items that need it
+    if (items) {
+      await this.handleProductCreation(items);
+      
+      // Validate items (after potential product creation)
+      await this.validatePurchaseItems(items);
+    }
+
+    // Update purchase
+    const updatedPurchase = await this.purchasesRepo.updateWithItems(
+      id, 
+      purchase, 
+      items?.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        qty: item.qty,
+        unit: item.unit,
+        areaSqft: item.areaSqft,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+        linked: item.linked || false,
+        appliedToProduct: item.appliedToProduct || false,
+        tempWidth: item.tempWidth,
+        tempHeight: item.tempHeight,
+        tempUom: item.tempUom
+      }))
+    );
+
+    // Apply cost updates to products if requested
+    if (items) {
+      await this.applyProductCostUpdates(items, id);
+    }
+
+    return updatedPurchase;
   }
 
   async deletePurchase(id: string) {

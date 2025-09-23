@@ -100,7 +100,9 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
           name: item.name,
           qty: parseFloat(item.qty),
           unit: item.unit as 'sqft' | 'sheet',
+          unitPrice: parseFloat(item.unitPrice),
           amount: parseFloat(item.amount),
+          areaSqft: item.areaSqft ? parseFloat(item.areaSqft) : undefined,
           linked: item.linked,
           appliedToProduct: item.appliedToProduct,
           tempWidth: item.tempWidth ? parseFloat(item.tempWidth) : undefined,
@@ -164,7 +166,9 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
         name: item.name,
         qty: parseFloat(item.qty),
         unit: item.unit as 'sqft' | 'sheet',
+        unitPrice: parseFloat(item.unitPrice),
         amount: parseFloat(item.amount),
+        areaSqft: item.areaSqft ? parseFloat(item.areaSqft) : undefined,
         linked: item.linked,
         appliedToProduct: item.appliedToProduct,
         tempWidth: item.tempWidth ? parseFloat(item.tempWidth) : undefined,
@@ -207,6 +211,8 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
             name: item.name,
             qty: item.qty.toString(),
             unit: item.unit,
+            areaSqft: item.areaSqft?.toString() || null,
+            unitPrice: item.unitPrice.toString(),
             amount: item.amount.toString(),
             linked: item.linked,
             appliedToProduct: item.appliedToProduct,
@@ -261,6 +267,68 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
     };
   }
 
+  async updateWithItems(
+    id: string, 
+    purchase: Partial<Purchase>, 
+    items?: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>[]
+  ): Promise<Purchase> {
+    const db = getDb();
+
+    return await db.transaction(async (tx) => {
+      // Update purchase
+      const [updated] = await tx
+        .update(purchases)
+        .set({
+          supplierId: purchase.supplierId || null,
+          invoiceNo: purchase.invoiceNo || null,
+          date: purchase.date,
+          currency: purchase.currency || null,
+          notes: purchase.notes || null,
+          updatedAt: new Date()
+        })
+        .where(eq(purchases.id, id))
+        .returning();
+
+      if (!updated) {
+        throw new Error(`Compra con ID ${id} no encontrada`);
+      }
+
+      // If items are provided, replace all items
+      if (items) {
+        // Delete existing items
+        await tx.delete(purchaseItems).where(eq(purchaseItems.purchaseId, id));
+
+        // Insert new items
+        if (items.length > 0) {
+          await tx.insert(purchaseItems).values(
+            items.map(item => ({
+              purchaseId: id,
+              productId: item.productId || null,
+              name: item.name,
+              qty: item.qty.toString(),
+              unit: item.unit,
+              unitPrice: item.unitPrice.toString(),
+              amount: item.amount.toString(),
+              areaSqft: item.areaSqft?.toString() || null,
+              linked: item.linked,
+              appliedToProduct: item.appliedToProduct,
+              tempWidth: item.tempWidth?.toString() || null,
+              tempHeight: item.tempHeight?.toString() || null,
+              tempUom: item.tempUom || null
+            }))
+          );
+        }
+      }
+
+      // Return full purchase with updated data
+      const fullPurchase = await this.getById(id);
+      if (!fullPurchase) {
+        throw new Error(`Compra con ID ${id} no encontrada después de actualizar`);
+      }
+      return fullPurchase;
+    });
+  }
+
   async addItem(
     purchaseId: string, 
     item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>
@@ -275,6 +343,7 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
         name: item.name,
         qty: item.qty.toString(),
         unit: item.unit,
+        unitPrice: item.unitPrice.toString(),
         amount: item.amount.toString(),
         linked: item.linked,
         appliedToProduct: item.appliedToProduct,
@@ -291,6 +360,7 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
       name: newItem.name,
       qty: parseFloat(newItem.qty),
       unit: newItem.unit as 'sqft' | 'sheet',
+      unitPrice: parseFloat(newItem.unitPrice),
       amount: parseFloat(newItem.amount),
       linked: newItem.linked,
       appliedToProduct: newItem.appliedToProduct,
@@ -334,6 +404,7 @@ export class DrizzlePurchasesRepo implements PurchasesRepo {
       name: updated.name,
       qty: parseFloat(updated.qty),
       unit: updated.unit as 'sqft' | 'sheet',
+      unitPrice: parseFloat(updated.unitPrice),
       amount: parseFloat(updated.amount),
       linked: updated.linked,
       appliedToProduct: updated.appliedToProduct,

@@ -1,0 +1,2 @@
+ALTER TABLE "purchase_items" ADD COLUMN "area_sqft" numeric(10, 3);--> statement-breakpoint
+ALTER TABLE "purchase_items" ADD CONSTRAINT "purchase_items_area_sqft_positive" CHECK (("purchase_items"."area_sqft" IS NULL) OR ("purchase_items"."area_sqft" > 0));

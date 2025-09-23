@@ -2,15 +2,23 @@ import type { CreatePurchaseItemInput } from './types';
 
 /**
  * Calculate cost per square foot for a purchase item
+ * Formula: cost_ft2_line = unit_price / area_sqft_per_unit
  */
 export function calculateCostPerSqft(
   item: CreatePurchaseItemInput,
   productAreaSqft?: number
 ): number | null {
-  if (item.qty <= 0) return null;
+  if (item.unitPrice <= 0) return null;
 
+  // Use direct area from form (canonical field)
+  if (item.areaSqft && item.areaSqft > 0) {
+    return item.unitPrice / item.areaSqft;
+  }
+
+  // Fallback to legacy logic for backward compatibility with old data
   if (item.unit === 'sqft') {
-    return item.amount / item.qty;
+    // For sqft unit, assume 1 sq ft per unit if no area specified
+    return item.unitPrice;
   }
 
   if (item.unit === 'sheet') {
@@ -20,7 +28,7 @@ export function calculateCostPerSqft(
       // Use linked product's area
       areaPerSheet = productAreaSqft;
     } else if (item.tempWidth && item.tempHeight && item.tempUom) {
-      // Calculate from temporary dimensions
+      // Calculate from temporary dimensions (legacy)
       const width = item.tempWidth;
       const height = item.tempHeight;
       const uom = item.tempUom;
@@ -42,7 +50,8 @@ export function calculateCostPerSqft(
       return null; // Cannot calculate without dimensions
     }
 
-    return item.amount / (item.qty * areaPerSheet);
+    // cost_sqft = unit_price / area_per_sheet
+    return item.unitPrice / areaPerSheet;
   }
 
   return null;

@@ -21,6 +21,8 @@ export interface CreatePurchaseItemInput {
   name: string;
   qty: number;
   unit: 'sqft' | 'sheet';
+  areaSqft?: number; // Area in square feet - optional for backward compatibility
+  unitPrice: number;
   amount: number;
   linked?: boolean;
   appliedToProduct?: boolean;
@@ -51,6 +53,8 @@ export interface PurchaseItem {
   name: string;
   qty: number;
   unit: 'sqft' | 'sheet';
+  areaSqft?: number; // Area in square feet
+  unitPrice: number;
   amount: number;
   linked: boolean;
   appliedToProduct: boolean;

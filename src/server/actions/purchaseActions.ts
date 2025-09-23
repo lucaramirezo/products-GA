@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { buildDbServices } from '@/services/dbServiceContainer';
-import type { CreatePurchaseInput, Purchase } from '@/lib/purchases/types';
+import type { CreatePurchaseInput, UpdatePurchaseInput, Purchase } from '@/lib/purchases/types';
 
 /**
  * Create a new purchase with items using the service layer
@@ -36,6 +36,27 @@ export async function updatePurchase(id: string, input: Partial<Purchase>): Prom
     return purchase;
   } catch (error) {
     console.error('Error updating purchase:', error);
+    throw new Error('Error al actualizar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+  }
+}
+
+/**
+ * Update an existing purchase with items
+ */
+export async function updatePurchaseWithItems(
+  id: string, 
+  input: UpdatePurchaseInput
+): Promise<Purchase> {
+  try {
+    const { services } = await buildDbServices();
+    const purchase = await services.purchases.updateWithItems(id, input, input.items) as Purchase;
+
+    revalidatePath('/');
+    revalidatePath('/compras');
+    
+    return purchase;
+  } catch (error) {
+    console.error('Error updating purchase with items:', error);
     throw new Error('Error al actualizar la compra: ' + (error instanceof Error ? error.message : 'Error desconocido'));
   }
 }

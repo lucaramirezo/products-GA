@@ -126,6 +126,57 @@ export class MemoryPurchasesRepo implements PurchasesRepo {
     return updatedPurchase;
   }
 
+  async updateWithItems(
+    id: string, 
+    purchase: Partial<Purchase>, 
+    items?: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>[]
+  ): Promise<Purchase> {
+    const index = purchases.findIndex(p => p.id === id);
+    if (index === -1) {
+      throw new Error(`Compra con ID ${id} no encontrada`);
+    }
+
+    const updatedPurchase = {
+      ...purchases[index],
+      ...purchase,
+      updatedAt: new Date()
+    };
+
+    purchases[index] = updatedPurchase;
+
+    // If items are provided, replace all items
+    if (items) {
+      // Remove existing items for this purchase
+      const itemsToRemove = purchaseItems.filter(item => item.purchaseId === id);
+      itemsToRemove.forEach(item => {
+        const itemIndex = purchaseItems.findIndex(i => i.id === item.id);
+        if (itemIndex !== -1) {
+          purchaseItems.splice(itemIndex, 1);
+        }
+      });
+
+      // Add new items
+      const now = new Date();
+      items.forEach(item => {
+        const newItem: PurchaseItem = {
+          ...item,
+          id: `item_${nextItemId++}`,
+          purchaseId: id,
+          createdAt: now,
+          updatedAt: now
+        };
+        purchaseItems.push(newItem);
+      });
+    }
+
+    // Return full purchase with details
+    const fullPurchase = await this.getById(id);
+    if (!fullPurchase) {
+      throw new Error(`Compra con ID ${id} no encontrada después de actualizar`);
+    }
+    return fullPurchase;
+  }
+
   async addItem(
     purchaseId: string, 
     item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt' | 'updatedAt'>

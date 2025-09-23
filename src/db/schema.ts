@@ -126,7 +126,9 @@ export const purchaseItems = pgTable('purchase_items', {
   name: text('name').notNull(),
   qty: numeric('qty', { precision: 12, scale: 4 }).notNull(),
   unit: purchaseUnitEnum('unit').notNull(),
+  unitPrice: numeric('unit_price', { precision: 12, scale: 4 }).notNull(),
   amount: numeric('amount', { precision: 12, scale: 4 }).notNull(),
+  areaSqft: numeric('area_sqft', { precision: 10, scale: 3 }),
   linked: boolean('linked').notNull().default(false),
   appliedToProduct: boolean('applied_to_product').notNull().default(false),
   // For sheet unit calculations when no product is linked
@@ -137,7 +139,9 @@ export const purchaseItems = pgTable('purchase_items', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 }, (t) => ({
   qtyPositive: check('purchase_items_qty_positive', sql`${t.qty} > 0`),
+  unitPricePositive: check('purchase_items_unit_price_positive', sql`${t.unitPrice} > 0`),
   amountNonNegative: check('purchase_items_amount_non_negative', sql`${t.amount} >= 0`),
+  areaSqftPositive: check('purchase_items_area_sqft_positive', sql`(${t.areaSqft} IS NULL) OR (${t.areaSqft} > 0)`),
   tempWidthPositive: check('purchase_items_temp_width_positive', sql`(${t.tempWidth} IS NULL) OR (${t.tempWidth} > 0)`),
   tempHeightPositive: check('purchase_items_temp_height_positive', sql`(${t.tempHeight} IS NULL) OR (${t.tempHeight} > 0)`),
   tempUomValid: check('purchase_items_temp_uom_valid', sql`(${t.tempUom} IS NULL) OR (${t.tempUom} IN ('in', 'cm'))`),

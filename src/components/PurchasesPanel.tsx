@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createPurchase, updatePurchase, deletePurchase } from '@/server/actions/purchaseActions';
+import { createPurchase, updatePurchaseWithItems, deletePurchase } from '@/server/actions/purchaseActions';
 import { getPurchasesList, getPurchaseById } from '@/server/actions/purchaseQueries';
 import { createProvider } from '@/server/actions/providerMutations';
 import { calculateCostPerSqft } from '@/lib/purchases/calculations';
-import type { CreatePurchaseInput, CreatePurchaseItemInput, PurchaseWithDetails } from '@/lib/purchases/types';
+import type { CreatePurchaseInput, UpdatePurchaseInput, CreatePurchaseItemInput, PurchaseWithDetails } from '@/lib/purchases/types';
 import type { Provider } from '@/server/queries/getInitialData';
 import type { Product, CategoryRule } from '@/lib/pricing/types';
 
@@ -45,6 +45,8 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       name: '',
       qty: 1,
       unit: 'sqft',
+      areaSqft: 1.0, // Default area for sq ft items
+      unitPrice: 0,
       amount: 0,
       linked: false,
       appliedToProduct: false,
@@ -109,7 +111,9 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
           name: item.name,
           qty: item.qty,
           unit: item.unit,
+          unitPrice: item.unitPrice,
           amount: item.amount,
+          areaSqft: item.areaSqft || 1.0, // Default to 1.0 if no area stored
           linked: item.linked,
           appliedToProduct: item.appliedToProduct,
           productId: item.productId,
@@ -118,6 +122,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
           tempUom: item.tempUom as 'in' | 'cm' | undefined,
           linkingMode: item.productId ? 'existing' : 'none'
         }));
+        
         setItems(formItems);
         setView('edit');
       } else {
@@ -173,6 +178,8 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       name: '',
       qty: 1,
       unit: 'sqft',
+      areaSqft: 1.0, // Default area for sq ft items
+      unitPrice: 0,
       amount: 0,
       linked: false,
       appliedToProduct: false,
@@ -199,9 +206,11 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
   const addItem = () => {
     setItems([...items, {
       name: '',
-      qty: 1,
+      qty: 1, // Default to 1
       unit: 'sqft',
-      amount: 0,
+      areaSqft: 1.0, // Default area for sq ft items
+      unitPrice: 0, // Will show empty placeholder
+      amount: 0, // Calculated automatically
       linked: false,
       appliedToProduct: false,
       linkingMode: 'none',
@@ -216,16 +225,44 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Auto-link logic for existing products
+    // Auto-calculate amount when qty or unitPrice changes
+    if (field === 'qty' || field === 'unitPrice') {
+      const qty = field === 'qty' ? (value as number) : newItems[index].qty || 0;
+      const unitPrice = field === 'unitPrice' ? (value as number) : newItems[index].unitPrice || 0;
+      newItems[index].amount = qty * unitPrice;
+    }
+    
+    // Smart area defaults when linking to existing products
     if (field === 'productId' && value) {
       newItems[index].linked = true;
       const product = products.find(p => p.sku === value);
       if (product) {
         newItems[index].name = product.name;
+        
+        // Set smart area defaults based on product sell mode
+        if (product.sell_mode === 'SQFT') {
+          // For sq ft products, default to 1.0 (editable)
+          newItems[index].areaSqft = newItems[index].areaSqft || 1.0;
+        } else if (product.sell_mode === 'SHEET' && product.area_sqft) {
+          // For sheet products with known area, prefill (editable)
+          newItems[index].areaSqft = product.area_sqft;
+        }
       }
     } else if (field === 'productId' && !value) {
       newItems[index].linked = false;
       newItems[index].appliedToProduct = false;
+    }
+
+    // Smart area defaults when changing unit
+    if (field === 'unit') {
+      if (value === 'sqft' && !newItems[index].areaSqft) {
+        newItems[index].areaSqft = 1.0; // Default for sq ft
+      }
+    }
+
+    // Update newProductArea when areaSqft changes and in create mode
+    if (field === 'areaSqft' && newItems[index].linkingMode === 'create') {
+      newItems[index].newProductArea = value as number;
     }
 
     // Clear dependent fields when linking mode changes
@@ -241,6 +278,8 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       } else if (value === 'create') {
         newItems[index].productId = undefined;
         newItems[index].linked = false;
+        // Initialize newProductArea with current line area
+        newItems[index].newProductArea = newItems[index].areaSqft || 1.0;
       }
     }
 
@@ -260,15 +299,13 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
     return !!(item.linked && item.productId);
   };
 
-  const needsDimensions = (item: CreatePurchaseItemInput): boolean => {
-    return item.unit === 'sheet' && !item.productId;
-  };
 
   const getValidationError = (item: CreatePurchaseItemInput): string | null => {
     if (!item.name.trim()) return null; // Skip validation for empty items
     
     if (item.qty <= 0) return 'La cantidad debe ser mayor a 0';
-    if (item.amount < 0) return 'El monto no puede ser negativo';
+    if (item.unitPrice <= 0) return 'El precio unitario debe ser mayor a 0';
+    if (!item.areaSqft || item.areaSqft <= 0) return 'El área debe ser mayor a 0';
     
     // Validate product linking
     if (item.linkingMode === 'existing' && !item.productId) {
@@ -279,27 +316,31 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       if (!item.newProductCategory?.trim()) {
         return 'Se requiere categoría para crear un nuevo producto';
       }
-      if (!item.newProductArea || item.newProductArea <= 0) {
+      // For new product creation, use the line area if newProductArea is not set
+      const productArea = item.newProductArea || item.areaSqft;
+      if (!productArea || productArea <= 0) {
         return 'Se requiere área válida para crear un nuevo producto';
       }
     }
     
-    if (item.unit === 'sheet') {
-      if (!item.productId && (!item.tempWidth || !item.tempHeight || !item.tempUom)) {
-        return 'Se requieren dimensiones para unidad "hoja" sin producto';
-      }
-      
-      if (item.tempWidth && item.tempWidth <= 0) return 'El ancho debe ser mayor a 0';
-      if (item.tempHeight && item.tempHeight <= 0) return 'El alto debe ser mayor a 0';
-      
-      // Check if area calculation would be valid
-      const costPerSqft = getCostPerSqft(item);
-      if (item.qty > 0 && item.amount > 0 && costPerSqft === null) {
-        return 'Error en cálculo de área - verifique las dimensiones';
-      }
-    }
-    
     return null;
+  };
+
+  // Derived field calculations
+  const getTotalArea = (item: CreatePurchaseItemInput): number => {
+    return (item.qty || 0) * (item.areaSqft || 0);
+  };
+
+  const getTotalCost = (item: CreatePurchaseItemInput): number => {
+    return (item.qty || 0) * (item.unitPrice || 0);
+  };
+
+  const getCostFt2Line = (item: CreatePurchaseItemInput): number | null => {
+    const totalArea = getTotalArea(item);
+    const totalCost = getTotalCost(item);
+    
+    if (totalArea <= 0) return null; // Divide by zero guard
+    return totalCost / totalArea;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -326,24 +367,29 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
     try {
       if (view === 'edit' && editingPurchase) {
         // Update existing purchase
-        const updateData = {
+        const finalItems = validItems.filter(item => item.qty > 0 && item.amount >= 0);
+        
+        const updateData: UpdatePurchaseInput = {
           supplierId: supplierId || undefined,
           invoiceNo: invoiceNo || undefined,
           date: new Date(date),
           currency: currency || undefined,
           notes: notes || undefined,
+          items: finalItems,
         };
 
-        await updatePurchase(editingPurchase.id, updateData);
+        await updatePurchaseWithItems(editingPurchase.id, updateData);
       } else {
         // Create new purchase
+        const finalItems = validItems.filter(item => item.qty > 0 && item.amount >= 0);
+        
         const purchaseData: CreatePurchaseInput = {
           supplierId: supplierId || undefined,
           invoiceNo: invoiceNo || undefined,
           date: new Date(date),
           currency: currency || undefined,
           notes: notes || undefined,
-          items: validItems.filter(item => item.qty > 0 && item.amount >= 0),
+          items: finalItems,
         };
 
         await createPurchase(purchaseData);
@@ -624,21 +670,6 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                               <option value="Signage">Signage</option>
                             </select>
                           </div>
-                          
-                          {/* Area Input with better step */}
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Área (sq ft) *</label>
-                            <input
-                              type="number"
-                              value={item.newProductArea || ''}
-                              onChange={(e) => updateItem(index, 'newProductArea', parseFloat(e.target.value) || 0)}
-                              placeholder="Ej: 12, 24, 48..."
-                              min="1"
-                              step="1"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            />
-                            <div className="text-xs text-gray-500 mt-1">Valores comunes: 12, 24, 36, 48 sq ft</div>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -665,120 +696,103 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                       </label>
                       <input
                         type="number"
-                        value={item.qty}
+                        value={item.qty || ''}
                         onChange={(e) => updateItem(index, 'qty', parseFloat(e.target.value) || 0)}
                         min="0"
-                        step="0.01"
+                        step="1"
                         required
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Cantidad"
                       />
                     </div>
 
-                    {/* Unit */}
+                    {/* Area */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Unidad *
-                      </label>
-                      <select
-                        value={item.unit}
-                        onChange={(e) => updateItem(index, 'unit', e.target.value as 'sqft' | 'sheet')}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="sqft">Pie²</option>
-                        <option value="sheet">Hoja</option>
-                      </select>
-                    </div>
-
-                    {/* Amount */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Monto *
+                        Área (sq ft) *
                       </label>
                       <input
                         type="number"
-                        value={item.amount}
-                        onChange={(e) => updateItem(index, 'amount', parseFloat(e.target.value) || 0)}
+                        value={item.areaSqft || ''}
+                        onChange={(e) => updateItem(index, 'areaSqft', parseFloat(e.target.value) || undefined)}
                         min="0"
                         step="0.01"
                         required
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Ej: 12, 24, 48..."
+                      />
+                    </div>
+
+                    {/* Unit Price */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Precio Unitario *
+                      </label>
+                      <input
+                        type="number"
+                        value={item.unitPrice || ''}
+                        onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.01"
+                        required
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Precio"
                       />
                     </div>
                   </div>
 
-                  {/* Sheet Dimensions (when needed) */}
-                  {needsDimensions(item) && (
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800 mb-2">
-                        Dimensiones requeridas para cálculo (unidad: hoja sin producto vinculado)
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Ancho
-                          </label>
-                          <input
-                            type="number"
-                            value={item.tempWidth || ''}
-                            onChange={(e) => updateItem(index, 'tempWidth', parseFloat(e.target.value) || undefined)}
-                            min="0"
-                            step="0.1"
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
+                  {/* Monto Total - Segunda fila a la derecha */}
+                  <div className="mt-3 flex justify-end">
+                    <div className="w-48">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Monto Total
+                      </label>
+                      <div className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-gray-700 font-medium text-right">
+                        ${((item.unitPrice || 0) * (item.qty || 0)).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Derived calculations display */}
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Total Área</label>
+                        <div className="text-gray-800">{getTotalArea(item).toFixed(2)} sq ft</div>
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Total Costo</label>
+                        <div className="text-gray-800">${getTotalCost(item).toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Costo/ft²</label>
+                        <div className="text-gray-800">
+                          {(() => {
+                            const costFt2 = getCostFt2Line(item);
+                            return costFt2 !== null ? `$${costFt2.toFixed(4)}` : 'N/A';
+                          })()}
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Alto
-                          </label>
-                          <input
-                            type="number"
-                            value={item.tempHeight || ''}
-                            onChange={(e) => updateItem(index, 'tempHeight', parseFloat(e.target.value) || undefined)}
-                            min="0"
-                            step="0.1"
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Unidad
-                          </label>
-                          <select
-                            value={item.tempUom || 'in'}
-                            onChange={(e) => updateItem(index, 'tempUom', e.target.value as 'in' | 'cm')}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="in">Pulgadas</option>
-                            <option value="cm">Centímetros</option>
-                          </select>
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Estado</label>
+                        <div className="flex items-center space-x-2">
+                          {item.linked && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Vinculado</span>
+                          )}
+                          {item.appliedToProduct && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Aplicado</span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Cost Calculation & Actions */}
+                  {/* Product Linking & Actions */}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center space-x-4">
-                      {/* Cost per sqft display */}
-                      {(() => {
-                        const costPerSqft = getCostPerSqft(item);
-                        return costPerSqft !== null ? (
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Costo/pie²: </span>
-                            <span className="text-green-600 font-mono">
-                              ${costPerSqft.toFixed(4)}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-red-600">
-                            Faltan datos para calcular costo/pie²
-                          </div>
-                        );
-                      })()}
-
                       {/* Apply to product checkbox */}
                       {canApplyToProduct(item) && (() => {
-                        const costPerSqft = getCostPerSqft(item);
+                        const costFt2Line = getCostFt2Line(item);
                         const product = products.find(p => p.sku === item.productId);
                         return (
                           <label className="flex items-center space-x-2">
@@ -787,11 +801,13 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                               checked={item.appliedToProduct}
                               onChange={(e) => {
                                 const checked = e.target.checked;
-                                if (checked && costPerSqft !== null && product) {
+                                if (checked && costFt2Line !== null && product) {
                                   const confirmed = window.confirm(
-                                    `¿Vas a actualizar el coste de "${product.name}" (${product.sku}) a $${costPerSqft.toFixed(4)}/ft²?\n\n` +
+                                    `¿Aplicar precio ahora?\n\n` +
+                                    `Producto: "${product.name}" (${product.sku})\n` +
                                     `Coste actual: $${product.cost_sqft}/ft²\n` +
-                                    `Nuevo coste: $${costPerSqft.toFixed(4)}/ft²`
+                                    `Nuevo coste: $${costFt2Line.toFixed(4)}/ft²\n\n` +
+                                    `Esto actualizará el coste del producto inmediatamente.`
                                   );
                                   if (confirmed) {
                                     updateItem(index, 'appliedToProduct', true);
@@ -803,7 +819,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <span className="text-sm text-gray-700">
-                              Actualizar precio del producto ahora
+                              <strong>Aplicar precio ahora</strong> al producto
                             </span>
                           </label>
                         );
@@ -815,9 +831,9 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                       <button
                         type="button"
                         onClick={() => removeItem(index)}
-                        className="text-red-600 hover:text-red-700 text-sm"
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
                       >
-                        Eliminar
+                        Eliminar línea
                       </button>
                     )}
                   </div>
@@ -935,7 +951,10 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                     Cantidad
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unidad
+                    Área (sq ft)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Precio Unitario
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Monto
@@ -957,6 +976,8 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                     name: item.name,
                     qty: item.qty,
                     unit: item.unit,
+                    areaSqft: item.areaSqft,
+                    unitPrice: item.unitPrice,
                     amount: item.amount,
                     linked: item.linked,
                     appliedToProduct: item.appliedToProduct,
@@ -984,7 +1005,10 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                         {item.qty}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.unit}
+                        {item.areaSqft || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                        ${item.unitPrice?.toFixed(2) || '0.00'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
                         ${item.amount.toFixed(2)}

@@ -64,6 +64,7 @@ async function main() {
           name: 'Producto Demo 1',
           qty: '100',
           unit: 'sqft',
+          unitPrice: '2.50',
           amount: '250.00',
           linked: true,
           appliedToProduct: false
@@ -74,6 +75,7 @@ async function main() {
           name: 'Adhesive Vinyl Sheet 24"x36"',
           qty: '50',
           unit: 'sheet',
+          unitPrice: '9.00',
           amount: '450.00',
           linked: true,
           appliedToProduct: false
@@ -84,6 +86,7 @@ async function main() {
           name: 'Material sin vincular',
           qty: '25',
           unit: 'sheet',
+          unitPrice: '3.00',
           amount: '75.00',
           linked: false,
           appliedToProduct: false,
