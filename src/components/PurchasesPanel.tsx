@@ -8,6 +8,7 @@ import { calculateCostPerSqft } from '@/lib/purchases/calculations';
 import type { CreatePurchaseInput, UpdatePurchaseInput, CreatePurchaseItemInput, PurchaseWithDetails } from '@/lib/purchases/types';
 import type { Provider } from '@/server/queries/getInitialData';
 import type { Product, CategoryRule } from '@/lib/pricing/types';
+import { Button } from './ui';
 
 interface PurchasesPanelProps {
   suppliers: Provider[];
@@ -747,7 +748,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Monto Total
                       </label>
-                      <div className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-gray-700 font-medium text-right">
+                      <div className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-gray-700 font-medium text-right tabular-nums">
                         ${((item.unitPrice || 0) * (item.qty || 0)).toFixed(2)}
                       </div>
                     </div>
@@ -758,11 +759,11 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <label className="block font-medium text-gray-700 mb-1">Total Área</label>
-                        <div className="text-gray-800">{getTotalArea(item).toFixed(2)} sq ft</div>
+                        <div className="text-gray-800 tabular-nums">{getTotalArea(item).toFixed(2)} sq ft</div>
                       </div>
                       <div>
                         <label className="block font-medium text-gray-700 mb-1">Total Costo</label>
-                        <div className="text-gray-800">${getTotalCost(item).toFixed(2)}</div>
+                        <div className="text-gray-800 tabular-nums">${getTotalCost(item).toFixed(2)}</div>
                       </div>
                       <div>
                         <label className="block font-medium text-gray-700 mb-1">Costo/ft²</label>
@@ -1007,13 +1008,13 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.areaSqft || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 tabular-nums">
                         ${item.unitPrice?.toFixed(2) || '0.00'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 tabular-nums">
                         ${item.amount.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 tabular-nums">
                         {costPerSqft ? `$${costPerSqft.toFixed(4)}` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1046,7 +1047,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
           <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-900">Total:</span>
-              <span className="text-lg font-semibold text-gray-900">
+              <span className="text-lg font-semibold text-gray-900 tabular-nums">
                 ${selectedPurchase.totalAmount.toFixed(2)} {selectedPurchase.currency || 'USD'}
               </span>
             </div>
@@ -1064,12 +1065,18 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
           <h2 className="text-xl font-semibold">Compras</h2>
           <p className="text-gray-600 text-sm">Gestionar facturas manuales de proveedores</p>
         </div>
-        <button
+        <Button
           onClick={() => setView('create')}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          variant="success"
+          size="md"
+          icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          }
         >
           Nueva Compra
-        </button>
+        </Button>
       </div>
 
       {/* Search and Filters */}
@@ -1179,7 +1186,7 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {purchase.itemsCount} artículo{purchase.itemsCount !== 1 ? 's' : ''}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 tabular-nums">
                         ${purchase.totalAmount.toFixed(2)} {purchase.currency || 'USD'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
