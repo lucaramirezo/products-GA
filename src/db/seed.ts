@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Client } from 'pg';
-import { providers, tiers, priceParams, products, categoryRules } from './schema';
+import { providers, tiers, priceParams, products, categoryRules, purchases, purchaseItems } from './schema';
 import { sql } from 'drizzle-orm';
 
 async function main() {
@@ -39,11 +39,63 @@ async function main() {
 
     await tx.insert(products).values([
       // Product used by integration test parity
-      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
-      { sku: 'SKU1', name: 'Producto Demo 1', category: 'banner', providerId, costSqft: '2.5', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
-      { sku: 'SKU2', name: 'Producto Demo 2', category: 'banner', providerId, costSqft: '3.0', areaSqft: '1', activeTier: 2, sellMode: 'SQFT', inkEnabled: true, lamEnabled: true, cutEnabled: false, active: true },
-      { sku: 'SKU3', name: 'Producto Demo 3', category: 'vinyl', providerId, costSqft: '1.8', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: true, active: true }
+      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
+      { sku: 'SKU1', name: 'Producto Demo 1', category: 'banner', providerId, costSqft: '2.5', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
+      { sku: 'SKU2', name: 'Producto Demo 2', category: 'banner', providerId, costSqft: '3.0', areaSqft: '1', activeTier: 2, inkEnabled: true, lamEnabled: true, cutEnabled: false, active: true },
+      { sku: 'SKU3', name: 'Producto Demo 3', category: 'vinyl', providerId, costSqft: '1.8', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: true, active: true },
+      // Sheet product for purchases testing
+      { sku: 'SHEET-001', name: 'Adhesive Vinyl Sheet 24"x36"', category: 'vinyl', providerId, costSqft: '1.5', areaSqft: '6', activeTier: 1, sheetsCount: 1, inkEnabled: false, lamEnabled: false, cutEnabled: false, active: true }
     ]).onConflictDoNothing();
+
+    // Sample purchase with both SQFT and SHEET units
+    const [purchase] = await tx.insert(purchases).values({
+      supplierId: providerId,
+      invoiceNo: 'FAC-2024-001',
+      date: new Date('2024-01-15'),
+      currency: 'USD',
+      notes: 'Primera compra de prueba con diferentes unidades'
+    }).onConflictDoNothing().returning();
+
+    if (purchase) {
+      await tx.insert(purchaseItems).values([
+        {
+          purchaseId: purchase.id,
+          productId: 'SKU1',
+          name: 'Producto Demo 1',
+          qty: '100',
+          unit: 'sqft',
+          unitPrice: '2.50',
+          amount: '250.00',
+          linked: true,
+          appliedToProduct: false
+        },
+        {
+          purchaseId: purchase.id,
+          productId: 'SHEET-001',
+          name: 'Adhesive Vinyl Sheet 24"x36"',
+          qty: '50',
+          unit: 'sheet',
+          unitPrice: '9.00',
+          amount: '450.00',
+          linked: true,
+          appliedToProduct: false
+        },
+        {
+          purchaseId: purchase.id,
+          productId: null,
+          name: 'Material sin vincular',
+          qty: '25',
+          unit: 'sheet',
+          unitPrice: '3.00',
+          amount: '75.00',
+          linked: false,
+          appliedToProduct: false,
+          tempWidth: '12',
+          tempHeight: '18',
+          tempUom: 'in'
+        }
+      ]).onConflictDoNothing();
+    }
   });
 
   console.log('Seed complete');

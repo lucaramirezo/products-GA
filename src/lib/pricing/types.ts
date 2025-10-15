@@ -3,13 +3,11 @@
 // providerId -> provider_id, override_multiplier -> override_multiplier, override_number_of_layers -> override_number_of_layers
 // Soft delete & auditing fields (optional in UI): deleted_at -> deleted_at, created_at -> created_at, updated_at -> updated_at
 
-export type SellMode = 'SQFT' | 'SHEET';
-
 export interface Tier { id:number; mult:number; number_of_layers:number; }
 export interface Product {
   sku:string; name:string; category:string; providerId:string; cost_sqft:number; area_sqft:number; active_tier:number;
   override_multiplier?:number; override_number_of_layers?:number;
-  ink_enabled?:boolean; lam_enabled?:boolean; cut_enabled?:boolean; sell_mode:SellMode; sheets_count?:number; active:boolean;
+  ink_enabled?:boolean; lam_enabled?:boolean; cut_enabled?:boolean; sheets_count?:number; active:boolean;
   deleted_at?:string|null; created_at?:string; updated_at?:string;
 }
 export interface CategoryRule { category:string; override_multiplier?:number; override_number_of_layers?:number; }

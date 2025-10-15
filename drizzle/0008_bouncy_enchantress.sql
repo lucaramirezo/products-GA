@@ -1,0 +1,2 @@
+ALTER TABLE "purchase_items" ADD COLUMN "unit_price" numeric(12, 4) NOT NULL;--> statement-breakpoint
+ALTER TABLE "purchase_items" ADD CONSTRAINT "purchase_items_unit_price_positive" CHECK ("purchase_items"."unit_price" > 0);

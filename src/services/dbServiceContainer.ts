@@ -5,15 +5,35 @@ import { DrizzleParamsRepo } from '@/repositories/drizzle/paramsRepo';
 import { DrizzleProvidersRepo } from '@/repositories/drizzle/providersRepo';
 import { DrizzleAuditRepo } from '@/repositories/drizzle/auditRepo';
 import { DrizzlePriceCacheRepo } from '@/repositories/drizzle/priceCacheRepo';
+import { DrizzlePurchasesRepo } from '@/repositories/drizzle/purchasesRepo';
 import { PricingService } from './pricingService';
+import { PurchaseService } from './purchaseService';
 import { getDb } from '@/db/client';
 import { logPoolStatsOnce } from '@/db/check';
 import { pricingCache } from './cacheService';
 
 import { DrizzleDb } from '@/db/types';
 import { PriceBreakdown } from '@/lib/pricing/types';
-interface PricingLike { getPriceBySku: (sku:string, toggles:{ink:boolean;lam:boolean;cut:boolean;sheets?:number;})=>Promise<PriceBreakdown>; }
-interface Container { db:DrizzleDb; repos:{ products:unknown; tiers:unknown; categories:unknown; params:unknown; providers:unknown; audit:unknown; priceCache:unknown }; services:{ pricing: PricingLike } }
+import { PurchaseWithDetails } from '@/lib/purchases/types';
+
+interface PricingLike { 
+  getPriceBySku: (sku:string, toggles:{ink:boolean;lam:boolean;cut:boolean;sheets?:number;})=>Promise<PriceBreakdown>; 
+}
+
+interface PurchaseLike { 
+  list: (options?: { limit?: number; offset?: number; search?: string; supplierId?: string; dateFrom?: Date; dateTo?: Date }) => Promise<{ purchases: PurchaseWithDetails[]; total: number }>; 
+  getById: (id: string) => Promise<PurchaseWithDetails | null>; 
+  save: (dto: unknown) => Promise<unknown>; 
+  update: (id: string, patch: unknown) => Promise<unknown>;
+  updateWithItems: (id: string, purchase: unknown, items?: unknown) => Promise<unknown>;
+  delete: (id: string) => Promise<void>;
+}
+
+interface Container { 
+  db:DrizzleDb; 
+  repos:{ products:unknown; tiers:unknown; categories:unknown; params:unknown; providers:unknown; audit:unknown; priceCache:unknown; purchases:unknown }; 
+  services:{ pricing: PricingLike; purchases: PurchaseLike } 
+}
 let _containerPromise: Promise<Container> | null = null;
 
 export function buildDbServices(){
@@ -29,7 +49,20 @@ export function buildDbServices(){
     const providers = new DrizzleProvidersRepo(db as DrizzleDb);
     const audit = new DrizzleAuditRepo(db as DrizzleDb);
     const priceCacheRepo = new DrizzlePriceCacheRepo(db as DrizzleDb);
+    const purchases = new DrizzlePurchasesRepo();
     const pricing = new PricingService({ products, tiers, categories, params });
+    const purchaseService = new PurchaseService(purchases, products, providers, audit);
+    
+    // Create a wrapper to match PurchaseLike interface
+    const purchaseServiceWrapper = {
+      list: purchaseService.list.bind(purchaseService),
+      getById: purchaseService.getById.bind(purchaseService), 
+      save: purchaseService.save.bind(purchaseService),
+      update: purchaseService.updatePurchase.bind(purchaseService),
+      updateWithItems: purchaseService.updatePurchaseWithItems.bind(purchaseService),
+      delete: purchaseService.deletePurchase.bind(purchaseService)
+    };
+    
     // Decorate pricing with simple cache for getPriceBySku
     const cachedPricing = {
       async getPriceBySku(sku:string, toggles:{ink:boolean;lam:boolean;cut:boolean;sheets?:number;}){
@@ -41,7 +74,7 @@ export function buildDbServices(){
         return value;
       }
     };
-    return { db, repos:{ products, tiers, categories, params, providers, audit, priceCache: priceCacheRepo }, services:{ pricing: cachedPricing } } as Container;
+    return { db, repos:{ products, tiers, categories, params, providers, audit, priceCache: priceCacheRepo, purchases }, services:{ pricing: cachedPricing, purchases: purchaseServiceWrapper } } as Container;
   })();
   return _containerPromise;
 }

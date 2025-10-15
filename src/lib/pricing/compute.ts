@@ -15,9 +15,9 @@ export function computePrice(ctx:ComputeContext): PriceBreakdown {
   const ink_add = toggles.ink && product.ink_enabled ? params.ink_price * eff.number_of_layers * area : 0;
   const lam_add = toggles.lam && product.lam_enabled ? params.lamination_price * area : 0;
   
-  // New cutting logic: only applies when sell_mode = SQFT
+  // Cutting logic always applies when cut toggle is enabled
   let cut_add = 0;
-  if (toggles.cut && product.cut_enabled && product.sell_mode === 'SQFT') {
+  if (toggles.cut && product.cut_enabled) {
     // cut_add = cut_factor × (base_material_price) where base_material_price = cost_sqft × multiplier × area
     cut_add = params.cut_factor * base_total;
   }

@@ -18,7 +18,7 @@ describe('DB vs InMemory pricing parity (basic smoke)', () => {
       tiers: { id:number; mult:number; number_of_layers:number;}[];
       categoryRules: { category:string;}[];
       params: { ink_price:number; lamination_price:number; cut_price:number; cut_factor:number; rounding_step:number; cost_method:string; };
-      products: { sku:string; name:string; category:string; providerId:string; cost_sqft:number; area_sqft:number; active_tier:number; sell_mode:'SQFT'|'SHEET'; ink_enabled:boolean; lam_enabled:boolean; cut_enabled:boolean; active:boolean;}[];
+  products: { sku:string; name:string; category:string; providerId:string; cost_sqft:number; area_sqft:number; active_tier:number; ink_enabled:boolean; lam_enabled:boolean; cut_enabled:boolean; active:boolean;}[];
       providers: { id:string; name:string;}[];
     } = {
       tiers:[
@@ -30,7 +30,7 @@ describe('DB vs InMemory pricing parity (basic smoke)', () => {
       ],
       categoryRules:[ { category:'LargeFormat' } ],
       params:{ ink_price:0.55, lamination_price:1, cut_price:20, cut_factor:0.25, rounding_step:0.05, cost_method:'latest' },
-      products:[ { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, sell_mode:'SQFT', ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true } ],
+  products:[ { sku:'SKU-001', name:'Vinyl Banner 1m²', category:'LargeFormat', providerId:'prov_a', cost_sqft:2.1, area_sqft:1, active_tier:1, ink_enabled:true, lam_enabled:false, cut_enabled:false, active:true } ],
       providers:[ { id:'prov_a', name:'Prov A' } ]
     };
   // Narrow to expected builder argument type via explicit structural mapping

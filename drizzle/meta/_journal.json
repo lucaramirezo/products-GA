@@ -50,6 +50,27 @@
       "when": 1758125104217,
       "tag": "0006_strong_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1758295667925,
+      "tag": "0007_lovely_joshua_kane",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1758307297883,
+      "tag": "0008_bouncy_enchantress",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1758324384502,
+      "tag": "0009_late_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

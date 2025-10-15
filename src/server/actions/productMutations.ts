@@ -5,9 +5,10 @@ import { products, auditLog } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import type { Product } from '@/lib/pricing/types';
+import type { Pool } from 'pg';
 
 // Helper function to adjust sequence to next available SKU
-async function adjustSequenceToNextAvailable(pool: any): Promise<void> {
+async function adjustSequenceToNextAvailable(pool: Pool): Promise<void> {
   try {
     // Get all existing SKUs that follow the SKU-XXX pattern
     const result = await pool.query(`
@@ -16,7 +17,7 @@ async function adjustSequenceToNextAvailable(pool: any): Promise<void> {
       ORDER BY sku
     `);
     
-    const existingSkus = result.rows.map((r: any) => r.sku);
+    const existingSkus = result.rows.map((r: { sku: string }) => r.sku);
     
     // Extract numbers from SKUs and find the next available one
     const existingNumbers = existingSkus.map((sku: string) => {
@@ -70,7 +71,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
   if (patch.ink_enabled !== undefined) updateData.inkEnabled = patch.ink_enabled;
   if (patch.lam_enabled !== undefined) updateData.lamEnabled = patch.lam_enabled;
   if (patch.cut_enabled !== undefined) updateData.cutEnabled = patch.cut_enabled;
-  if (patch.sell_mode !== undefined) updateData.sellMode = patch.sell_mode;
   if (patch.sheets_count !== undefined) updateData.sheetsCount = patch.sheets_count;
   if (patch.active !== undefined) updateData.active = patch.active;
 
@@ -88,7 +88,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: 'inkEnabled',
     lam_enabled: 'lamEnabled',
     cut_enabled: 'cutEnabled',
-    sell_mode: 'sellMode',
     sheets_count: 'sheetsCount',
     active: 'active'
   };
@@ -138,7 +137,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: updatedProduct.inkEnabled,
     lam_enabled: updatedProduct.lamEnabled,
     cut_enabled: updatedProduct.cutEnabled,
-    sell_mode: updatedProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: updatedProduct.sheetsCount ?? undefined,
     active: updatedProduct.active
   };
@@ -151,8 +149,8 @@ export async function createProduct(product: Product): Promise<Product> {
   const db = getDb();
   const pool = getPool();
   
-  // Auto-generate SKU if it's a placeholder (NEW-xxx) or missing
-  const shouldAutoGenerate = !product.sku || product.sku.startsWith('NEW-');
+  // Auto-generate SKU if it's a placeholder (NEW-xxx, QUICK-xxx) or missing/empty
+  const shouldAutoGenerate = !product.sku || product.sku.trim() === '' || product.sku.startsWith('NEW-') || product.sku.startsWith('QUICK-');
   
   if (shouldAutoGenerate) {
     // Find next available SKU to avoid conflicts
@@ -172,7 +170,6 @@ export async function createProduct(product: Product): Promise<Product> {
     inkEnabled: product.ink_enabled,
     lamEnabled: product.lam_enabled,
     cutEnabled: product.cut_enabled,
-    sellMode: product.sell_mode,
     sheetsCount: product.sheets_count,
     active: product.active
   };
@@ -180,9 +177,9 @@ export async function createProduct(product: Product): Promise<Product> {
   let newProduct;
   try {
     [newProduct] = await db.insert(products).values(insertData).returning();
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If we get a duplicate key error and we're auto-generating, try to fix sequence and retry
-    if (shouldAutoGenerate && error?.code === '23505') {
+    if (shouldAutoGenerate && error && typeof error === 'object' && 'code' in error && error.code === '23505') {
       console.log('SKU conflict detected, adjusting sequence and retrying...');
       await adjustSequenceToNextAvailable(pool);
       [newProduct] = await db.insert(products).values(insertData).returning();
@@ -215,7 +212,6 @@ export async function createProduct(product: Product): Promise<Product> {
     ink_enabled: newProduct.inkEnabled,
     lam_enabled: newProduct.lamEnabled,
     cut_enabled: newProduct.cutEnabled,
-    sell_mode: newProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: newProduct.sheetsCount ?? undefined,
     active: newProduct.active
   };

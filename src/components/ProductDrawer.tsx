@@ -55,7 +55,7 @@ export function ProductDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-30">
+    <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-white shadow-2xl p-5 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
@@ -124,31 +124,6 @@ export function ProductDrawer({
               min={0.01}
               className="w-32 rounded border border-slate-300 px-3 py-2"
             />
-          </Field>
-          
-          <Field label="Sell Mode">
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="sell_mode"
-                  value="SQFT"
-                  checked={product.sell_mode === 'SQFT'}
-                  onChange={(e) => onUpdate(product.sku, { sell_mode: e.target.value as 'SQFT' | 'SHEET' })}
-                />
-                <span>Square Foot</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="sell_mode"
-                  value="SHEET"
-                  checked={product.sell_mode === 'SHEET'}
-                  onChange={(e) => onUpdate(product.sku, { sell_mode: e.target.value as 'SQFT' | 'SHEET' })}
-                />
-                <span>Sheet</span>
-              </label>
-            </div>
           </Field>
           
           <Field label="Tier Activo">
@@ -221,15 +196,9 @@ export function ProductDrawer({
             <div className="space-y-1">
               <div>Base: {computed.activePricing.base_total.toFixed(2)}</div>
               <div>Add-ons: {computed.activePricing.addons_total.toFixed(2)} 
-                (Ink {computed.activePricing.ink_add.toFixed(2)} / Lam {computed.activePricing.lam_add.toFixed(2)}
-                {product.sell_mode === 'SQFT' ? ` / Cut ${computed.activePricing.cut_add.toFixed(2)}` : ''})
+                (Ink {computed.activePricing.ink_add.toFixed(2)} / Lam {computed.activePricing.lam_add.toFixed(2)} / Cut {computed.activePricing.cut_add.toFixed(2)})
               </div>
               <div>Final: {CURRENCY(computed.finalPrice)} ({computed.finalSource})</div>
-              {product.sell_mode === 'SHEET' && product.cut_enabled && (
-                <div className="text-orange-600 text-[10px]">
-                  ⚠️ Cutting disabled for SHEET mode
-                </div>
-              )}
               <div className="flex flex-wrap gap-1">
                 {computed.tiersPreview.map((tp) => (
                   <span key={tp.tier} className={`px-2 py-0.5 rounded bg-white border text-[10px] ${tp.tier === product.active_tier ? "border-slate-500" : "border-slate-200"}`}>
