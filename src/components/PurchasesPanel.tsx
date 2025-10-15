@@ -239,14 +239,10 @@ export function PurchasesPanel({ suppliers, products, onSuppliersChange, categor
       const product = products.find(p => p.sku === value);
       if (product) {
         newItems[index].name = product.name;
-        
-        // Set smart area defaults based on product sell mode
-        if (product.sell_mode === 'SQFT') {
-          // For sq ft products, default to 1.0 (editable)
-          newItems[index].areaSqft = newItems[index].areaSqft || 1.0;
-        } else if (product.sell_mode === 'SHEET' && product.area_sqft) {
-          // For sheet products with known area, prefill (editable)
+        if (product.area_sqft) {
           newItems[index].areaSqft = product.area_sqft;
+        } else if (!newItems[index].areaSqft) {
+          newItems[index].areaSqft = 1.0;
         }
       }
     } else if (field === 'productId' && !value) {

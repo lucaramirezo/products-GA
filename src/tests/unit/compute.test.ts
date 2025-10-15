@@ -4,7 +4,7 @@ import { ComputeContext, PriceParams, Product, Tier } from '@/lib/pricing/types'
 
 const tier:Tier = { id:1, mult:3.5, number_of_layers:1 };
 const params:PriceParams = { ink_price:0.5, lamination_price:0.2, cut_price:1, cut_factor:0.25, rounding_step:0.05 };
-function prod(p:Partial<Product>={}):Product{ return { sku:'S', name:'N', category:'Cat', providerId:'prov', cost_sqft:1, area_sqft:1, active_tier:1, sell_mode:'SQFT', active:true, ink_enabled:true, lam_enabled:true, cut_enabled:true, ...p }; }
+function prod(p:Partial<Product>={}):Product{ return { sku:'S', name:'N', category:'Cat', providerId:'prov', cost_sqft:1, area_sqft:1, active_tier:1, active:true, ink_enabled:true, lam_enabled:true, cut_enabled:true, ...p }; }
 
 describe('computePrice', () => {
   it('no addons when toggles false', () => {
@@ -26,26 +26,17 @@ describe('computePrice', () => {
     expect(br.base_total).toBe(0.1); // cost_sqft * mult * area = 0.1 * 1 * 1
   });
 
-  it('cutting applies only to SQFT mode', () => {
-    const sqftProduct = prod({ sell_mode: 'SQFT', cost_sqft: 4, area_sqft: 2 });
-    const sheetProduct = prod({ sell_mode: 'SHEET', cost_sqft: 4, area_sqft: 2 });
-    
-    // For SQFT mode, cutting should apply: cut_factor * (cost_sqft * mult * area)
-    const sqftCtx:ComputeContext = { product: sqftProduct, tier, params, toggles:{ink:false, lam:false, cut:true} };
-    const sqftResult = computePrice(sqftCtx);
-    
+  it('applies cutting factor whenever cut toggle is enabled', () => {
+    const product = prod({ cost_sqft: 4, area_sqft: 2 });
+    const ctx:ComputeContext = { product, tier, params, toggles:{ink:false, lam:false, cut:true} };
+    const result = computePrice(ctx);
+
     // Expected cut_add = 0.25 * (4 * 3.5 * 2) = 0.25 * 28 = 7
-    expect(sqftResult.cut_add).toBe(7);
-    
-    // For SHEET mode, cutting should NOT apply
-    const sheetCtx:ComputeContext = { product: sheetProduct, tier, params, toggles:{ink:false, lam:false, cut:true} };
-    const sheetResult = computePrice(sheetCtx);
-    
-    expect(sheetResult.cut_add).toBe(0);
+    expect(result.cut_add).toBe(7);
   });
 
   it('new cutting formula: cut_factor × base_material_price', () => {
-    const product = prod({ sell_mode: 'SQFT', cost_sqft: 2, area_sqft: 3 });
+    const product = prod({ cost_sqft: 2, area_sqft: 3 });
     const testParams = { ...params, cut_factor: 0.3 }; // 30%
     const ctx:ComputeContext = { product, tier, params: testParams, toggles:{ink:false, lam:false, cut:true} };
     const result = computePrice(ctx);

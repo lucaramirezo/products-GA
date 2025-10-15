@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Product } from '@/lib/pricing/types';
 import type { AuditEntry } from '@/server/queries/getInitialData';
 import { buildPricedProductRow } from '@/lib/pricing/row';
-import { Th, Td, Button, Input, Card, IconButton } from './ui';
+import { Th, Td, Button, Input, Card, IconButton, Checkbox } from './ui';
 import { CommitNumberInput } from './CommitInputs';
+import { ExportDropdown } from './ExportDropdown';
+import { ExportModal } from './ExportModal';
+import { ExportService } from '@/lib/export/service';
+import { DEFAULT_EXPORT_CONFIG } from '@/lib/export/types';
+import type { ExportConfig, TableState } from '@/lib/export/types';
 
 // const CURRENCY = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
@@ -55,13 +60,64 @@ function getCostSource(productSku: string, audit: AuditEntry[]): CostSourceInfo 
   return { source: 'MANUAL' };
 }
 
+const INITIAL_VISIBLE_COLUMNS = {
+  sku: true,
+  producto: true,
+  proveedor: true,
+  categoria: true,
+  cost: true,
+  tier: true,
+  base: false,
+  ink: false,
+  lam: false,
+  cut: false,
+  addons: false,
+  final: true,
+  area: true,
+  activo: true,
+  acciones: true
+} as const;
+
+type VisibleColumnsState = typeof INITIAL_VISIBLE_COLUMNS;
+type VisibleColumnKey = keyof VisibleColumnsState;
+
+const TABLE_COLUMN_TO_EXPORT: Record<VisibleColumnKey, string | null> = {
+  sku: 'sku',
+  producto: 'name',
+  proveedor: 'provider',
+  categoria: 'category',
+  cost: 'cost_sqft',
+  tier: 'tier',
+  base: 'base_total',
+  ink: 'ink_add',
+  lam: 'lam_add',
+  cut: 'cut_add',
+  addons: 'addons_total',
+  final: 'final_price',
+  area: 'area_sqft',
+  activo: null,
+  acciones: null
+};
+
+const mapVisibleColumnsToExport = (columns: VisibleColumnsState): string[] =>
+  Object.entries(columns)
+    .filter((entry): entry is [VisibleColumnKey, boolean] => entry[1])
+    .map(([key]) => TABLE_COLUMN_TO_EXPORT[key as VisibleColumnKey])
+    .filter((value): value is string => Boolean(value));
+
+const buildModalDefaultColumns = (columns: VisibleColumnsState): string[] => {
+  const mapped = mapVisibleColumnsToExport(columns);
+  return Array.from(new Set([...DEFAULT_EXPORT_CONFIG.columns, ...mapped]));
+};
+
 interface ProductsTableProps {
   computedProducts: ReturnType<typeof buildPricedProductRow>[];
+  allProducts: Product[];
   query: string;
   onQueryChange: (query: string) => void;
   showAudit: boolean;
   onToggleAudit: () => void;
-  onExportCSV: (full?: boolean) => void;
+  onExportCSV: (full?: boolean) => void; // Keep for backward compatibility
   onCreateProduct: () => void;
   onEditProduct: (sku: string) => void;
   onUpdateProduct: (sku: string, patch: Partial<Product>) => void;
@@ -72,11 +128,12 @@ interface ProductsTableProps {
 
 export function ProductsTable({
   computedProducts,
+  allProducts,
   query,
   onQueryChange,
   showAudit,
   onToggleAudit,
-  onExportCSV,
+  onExportCSV, // Keep for backward compatibility
   onCreateProduct,
   onEditProduct,
   onUpdateProduct,
@@ -87,6 +144,10 @@ export function ProductsTable({
   const [selectedProductForPurchaseInfo, setSelectedProductForPurchaseInfo] = useState<string | null>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const columnSelectorRef = useRef<HTMLDivElement>(null);
+  
+  // Multi-select state
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   
   // Close column selector when clicking outside
   useEffect(() => {
@@ -101,37 +162,32 @@ export function ProductsTable({
   }, []);
   
   // Define available columns for the selector
-  const [visibleColumns, setVisibleColumns] = useState({
-    sku: true,
-    producto: true,
-    proveedor: true,
-    categoria: true,
-    cost: true,
-    modo: true,
-    tier: true,
-    base: false, // Start hidden to reduce clutter
-    ink: false,
-    lam: false,
-    cut: false,
-    addons: false,
-    final: true,
-    area: true,
-    activo: true,
-    acciones: true
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumnsState>({
+    ...INITIAL_VISIBLE_COLUMNS
   });
 
-  const toggleColumn = (column: keyof typeof visibleColumns) => {
+  const toggleColumn = (column: VisibleColumnKey) => {
     setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
   };
 
+  const quickExportColumns = useMemo(
+    () => mapVisibleColumnsToExport(visibleColumns),
+    [visibleColumns]
+  );
+
+  const modalDefaultColumns = useMemo(
+    () => buildModalDefaultColumns(visibleColumns),
+    [visibleColumns]
+  );
+
   // Sorting state
   const [sortConfig, setSortConfig] = useState<{
-    key: 'sku' | 'name' | 'cost_sqft' | 'final' | null;
+    key: 'sku' | 'name' | 'cost_sqft' | 'final_price' | null;
     direction: 'asc' | 'desc';
   }>({ key: null, direction: 'asc' });
 
   // Sorting function
-  const handleSort = (key: 'sku' | 'name' | 'cost_sqft' | 'final') => {
+  const handleSort = (key: 'sku' | 'name' | 'cost_sqft' | 'final_price') => {
     setSortConfig(prevSort => ({
       key,
       direction: prevSort.key === key && prevSort.direction === 'asc' ? 'desc' : 'asc'
@@ -159,7 +215,7 @@ export function ProductsTable({
           aValue = a.product.cost_sqft;
           bValue = b.product.cost_sqft;
           break;
-        case 'final':
+        case 'final_price':
           aValue = a.finalPrice;
           bValue = b.finalPrice;
           break;
@@ -172,6 +228,92 @@ export function ProductsTable({
       return 0;
     });
   }, [computedProducts, sortConfig]);
+
+  // Multi-select helpers
+  const selectAllFiltered = () => {
+    const filteredSkus = sortedProducts.map(p => p.product.sku);
+    setSelectedProducts(filteredSkus);
+  };
+
+  const selectAll = () => {
+    const allSkus = allProducts.map(p => p.sku);
+    setSelectedProducts(allSkus);
+  };
+
+  const clearSelection = () => {
+    setSelectedProducts([]);
+  };
+
+  const toggleProductSelection = (sku: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(sku) 
+        ? prev.filter(s => s !== sku)
+        : [...prev, sku]
+    );
+  };
+
+  const isAllFilteredSelected = sortedProducts.length > 0 && 
+    sortedProducts.every(p => selectedProducts.includes(p.product.sku));
+
+  const isSomeFilteredSelected = sortedProducts.some(p => selectedProducts.includes(p.product.sku));
+
+  // Export functions
+  const createTableState = (): TableState => ({
+    query,
+    visibleColumns,
+    sortConfig,
+    selectedProducts
+  });
+
+  const handleQuickExport = async () => {
+    const service = new ExportService({
+      products: sortedProducts,
+      allProducts,
+      config: {
+        scope: 'filtered',
+        onlyActive: false,
+        columns: quickExportColumns,
+        includeHeaders: true,
+        format: 'excel',
+        currency: 'USD'
+      },
+      tableState: createTableState(),
+      providerName
+    });
+    
+    await service.export();
+  };
+
+  const handleExportAll = async () => {
+    const service = new ExportService({
+      products: sortedProducts,
+      allProducts,
+      config: {
+        scope: 'all',
+        onlyActive: false,
+        columns: ['sku', 'name', 'category', 'provider', 'final_price'],
+        includeHeaders: true,
+        format: 'excel',
+        currency: 'USD'
+      },
+      tableState: createTableState(),
+      providerName
+    });
+    
+    await service.export();
+  };
+
+  const handleCustomExport = async (config: ExportConfig) => {
+    const service = new ExportService({
+      products: sortedProducts,
+      allProducts,
+      config,
+      tableState: createTableState(),
+      providerName
+    });
+    
+    await service.export();
+  };
 
   return (
     <div className="space-y-6">
@@ -215,33 +357,52 @@ export function ProductsTable({
           
           {/* Utility Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              onClick={() => onExportCSV(false)}
-              variant="secondary"
-              size="sm"
-              icon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-            >
-              <span className="hidden sm:inline">Exportar CSV</span>
-              <span className="sm:hidden">CSV</span>
-            </Button>
+            {/* Selection Controls */}
+            {selectedProducts.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-md">
+                <span>{selectedProducts.length} seleccionados</span>
+                <button
+                  onClick={clearSelection}
+                  className="text-blue-600 hover:text-blue-800 ml-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             
-            <Button
-              onClick={() => onExportCSV(true)}
-              variant="secondary"
-              size="sm"
-              icon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                }
-            >
-              <span className="hidden sm:inline">Exportar Full</span>
-              <span className="sm:hidden">Full</span>
-            </Button>
+            {/* Multi-select buttons */}
+            <div className="flex items-center gap-1">
+              <Button
+                onClick={selectAllFiltered}
+                variant="secondary"
+                size="sm"
+                disabled={isAllFilteredSelected}
+              >
+                Sel. filtrados
+              </Button>
+              <Button
+                onClick={selectAll}
+                variant="secondary"
+                size="sm"
+              >
+                Sel. todos
+              </Button>
+              <Button
+                onClick={clearSelection}
+                variant="secondary"
+                size="sm"
+                disabled={selectedProducts.length === 0}
+              >
+                Limpiar
+              </Button>
+            </div>
+            
+            {/* New Export Dropdown */}
+            <ExportDropdown
+              onQuickExport={handleQuickExport}
+              onExportAll={handleExportAll}
+              onOpenModal={() => setShowExportModal(true)}
+            />
             
             <Button
               onClick={onToggleAudit}
@@ -282,7 +443,6 @@ export function ProductsTable({
                       proveedor: 'Proveedor',
                       categoria: 'Categoría',
                       cost: 'Cost/ft²',
-                      modo: 'Modo',
                       tier: 'Tier',
                       base: 'Base',
                       ink: 'Ink',
@@ -326,6 +486,14 @@ export function ProductsTable({
           <table className="min-w-full text-xs">
             <thead>
               <tr>
+                {/* Selection checkbox column */}
+                <Th className="w-10">
+                  <Checkbox
+                    checked={isAllFilteredSelected}
+                    onChange={(checked) => checked ? selectAllFiltered() : clearSelection()}
+                    className={isSomeFilteredSelected && !isAllFilteredSelected ? 'opacity-60' : ''}
+                  />
+                </Th>
                 {visibleColumns.sku && (
                   <Th 
                     sortable 
@@ -356,7 +524,6 @@ export function ProductsTable({
                     Cost/ft²
                   </Th>
                 )}
-                {visibleColumns.modo && <Th>Modo</Th>}
                 {visibleColumns.tier && <Th>Tier</Th>}
                 {visibleColumns.base && <Th className="text-right">Base</Th>}
                 {visibleColumns.ink && <Th className="text-right">Ink</Th>}
@@ -367,8 +534,8 @@ export function ProductsTable({
                   <Th 
                     className="text-right" 
                     sortable 
-                    onSort={() => handleSort('final')}
-                    sortDirection={sortConfig.key === 'final' ? sortConfig.direction : null}
+                    onSort={() => handleSort('final_price')}
+                    sortDirection={sortConfig.key === 'final_price' ? sortConfig.direction : null}
                   >
                     Final
                   </Th>
@@ -391,6 +558,8 @@ export function ProductsTable({
                   selectedProductForPurchaseInfo={selectedProductForPurchaseInfo}
                   onShowPurchaseInfo={setSelectedProductForPurchaseInfo}
                   visibleColumns={visibleColumns}
+                  isSelected={selectedProducts.includes(row.product.sku)}
+                  onToggleSelect={toggleProductSelection}
                 />
               ))}
             </tbody>
@@ -484,7 +653,7 @@ export function ProductsTable({
           <div>
             <h4 className="font-medium text-slate-700 mb-1">Fórmula de cálculo</h4>
             <p className="text-sm text-slate-600">
-              Base = (cost_sqft × mult × área) + Ink(ink_price × layers × área) + Lam(lam_price × área) + Cut(cut_factor × base, solo modo SQFT) → redondeo hacia arriba
+              Base = (cost_sqft × mult × área) + Ink(ink_price × layers × área) + Lam(lam_price × área) + Cut(cut_factor × base) → redondeo hacia arriba
             </p>
           </div>
         </div>
@@ -533,6 +702,18 @@ export function ProductsTable({
           </div>
         </Card>
       )}
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleCustomExport}
+        tableState={createTableState()}
+        totalRows={allProducts.length}
+        filteredRows={sortedProducts.length}
+        selectedRows={selectedProducts.length}
+        defaultColumns={modalDefaultColumns}
+      />
     </div>
   );
 }
@@ -552,7 +733,6 @@ interface ProductRowProps {
     proveedor: boolean;
     categoria: boolean;
     cost: boolean;
-    modo: boolean;
     tier: boolean;
     base: boolean;
     ink: boolean;
@@ -564,6 +744,9 @@ interface ProductRowProps {
     activo: boolean;
     acciones: boolean;
   };
+  // Multi-select props
+  isSelected: boolean;
+  onToggleSelect: (sku: string) => void;
 }
 
 function ProductRow({ 
@@ -575,12 +758,22 @@ function ProductRow({
   audit, 
   selectedProductForPurchaseInfo, 
   onShowPurchaseInfo,
-  visibleColumns
+  visibleColumns,
+  isSelected,
+  onToggleSelect
 }: ProductRowProps) {
   const costSource = getCostSource(row.product.sku, audit);
 
   return (
-    <tr className={`hover:bg-slate-50 transition-colors ${!row.product.active ? "opacity-60" : ""}`}>
+    <tr className={`hover:bg-slate-50 transition-colors ${!row.product.active ? "opacity-60" : ""} ${isSelected ? "bg-blue-50" : ""}`}>
+      {/* Selection checkbox */}
+      <Td>
+        <Checkbox
+          checked={isSelected}
+          onChange={() => onToggleSelect(row.product.sku)}
+        />
+      </Td>
+      
       {/* SKU */}
       {visibleColumns.sku && (
         <Td>
@@ -650,15 +843,6 @@ function ProductRow({
         </Td>
       )}
       
-      {/* Modo */}
-      {visibleColumns.modo && (
-        <Td>
-          <span className={`text-xs px-2 py-1 rounded ${row.product.sell_mode === 'SQFT' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-            {row.product.sell_mode}
-          </span>
-        </Td>
-      )}
-      
       {/* Tier */}
       {visibleColumns.tier && (
         <Td>
@@ -698,9 +882,7 @@ function ProductRow({
       {/* Cut */}
       {visibleColumns.cut && (
         <Td className="text-right tabular-nums">
-          {row.activePricing.cut_add ? row.activePricing.cut_add.toFixed(2) : 
-           (row.product.cut_enabled && row.product.sell_mode === 'SHEET') ? 
-           <span className="text-orange-500 text-xs" title="Cutting disabled for SHEET mode">⚠️</span> : "—"}
+          {row.activePricing.cut_add ? row.activePricing.cut_add.toFixed(2) : '—'}
         </Td>
       )}
       

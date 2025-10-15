@@ -610,3 +610,176 @@ export function IconButton({
     </button>
   );
 }
+
+// Modal component
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+  if (!isOpen) return null;
+
+  const sizeClasses = {
+    sm: 'max-w-md',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl'
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+          onClick={onClose}
+        />
+        
+        {/* Modal */}
+        <div className={`relative bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} transform transition-all`}>
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="p-6">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Dropdown component
+interface DropdownProps {
+  trigger: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Dropdown({ trigger, children, className = '' }: DropdownProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div onClick={() => setIsOpen(!isOpen)}>
+        {trigger}
+      </div>
+      
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Dropdown Item component
+interface DropdownItemProps {
+  onClick: () => void;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  disabled?: boolean;
+}
+
+export function DropdownItem({ onClick, icon, children, disabled = false }: DropdownItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2
+        ${disabled 
+          ? 'text-gray-400 cursor-not-allowed' 
+          : 'text-gray-700 hover:bg-gray-50'
+        }
+      `}
+    >
+      {icon && <span className="w-4 h-4">{icon}</span>}
+      {children}
+    </button>
+  );
+}
+
+// Checkbox component
+interface CheckboxProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function Checkbox({ checked, onChange, label, disabled = false, className = '' }: CheckboxProps) {
+  return (
+    <label className={`flex items-center gap-2 cursor-pointer ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${className}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+      />
+      {label && <span className="text-sm text-gray-700">{label}</span>}
+    </label>
+  );
+}
+
+// Select component
+interface SelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function Select({ value, onChange, options, placeholder, disabled = false, className = '' }: SelectProps) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className={`
+        w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+        ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}
+        ${className}
+      `}
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map(option => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}

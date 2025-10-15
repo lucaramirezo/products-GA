@@ -30,8 +30,7 @@ export class DrizzleProductsRepo implements ProductsRepo {
       overrideNumberOfLayers: p.override_number_of_layers ?? null,
       inkEnabled: p.ink_enabled ?? true,
       lamEnabled: p.lam_enabled ?? false,
-      cutEnabled: p.cut_enabled ?? false,
-      sellMode: p.sell_mode || 'SQFT',
+  cutEnabled: p.cut_enabled ?? false,
       sheetsCount: p.sheets_count ?? null,
       active: p.active ?? true
     };
@@ -51,8 +50,7 @@ export class DrizzleProductsRepo implements ProductsRepo {
     if(patch.override_number_of_layers!==undefined) set.overrideNumberOfLayers = patch.override_number_of_layers ?? null;
     if(patch.ink_enabled!==undefined) set.inkEnabled = patch.ink_enabled;
     if(patch.lam_enabled!==undefined) set.lamEnabled = patch.lam_enabled;
-    if(patch.cut_enabled!==undefined) set.cutEnabled = patch.cut_enabled;
-    if(patch.sell_mode!==undefined) set.sellMode = patch.sell_mode;
+  if(patch.cut_enabled!==undefined) set.cutEnabled = patch.cut_enabled;
     if(patch.sheets_count!==undefined) set.sheetsCount = patch.sheets_count ?? null;
     if(patch.active!==undefined) set.active = patch.active;
     if(Object.keys(set).length===0) return (await this.getBySku(sku))!;

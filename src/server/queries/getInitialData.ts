@@ -75,7 +75,6 @@ export async function getInitialData(): Promise<InitialData> {
       ink_enabled: p.inkEnabled,
       lam_enabled: p.lamEnabled,
       cut_enabled: p.cutEnabled,
-      sell_mode: p.sellMode as 'SQFT' | 'SHEET',
       sheets_count: p.sheetsCount ?? undefined,
       active: p.active
     }));

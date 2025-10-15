@@ -114,7 +114,6 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
       ink_enabled: true,
       lam_enabled: false,
       cut_enabled: false,
-      sell_mode: 'SQFT', // Default to SQFT mode
       active: true,
     };
 
@@ -370,6 +369,7 @@ export default function ProductsAppClient({ initialData }: ProductsAppClientProp
             <div className="animate-fade-in">
               <ProductsTable
                 computedProducts={computedProducts}
+                allProducts={products}
                 query={query}
                 onQueryChange={setQuery}
                 showAudit={showAudit}

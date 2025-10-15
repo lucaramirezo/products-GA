@@ -1,7 +1,7 @@
 import { PurchasesRepo, ProductsRepo, ProvidersRepo, AuditRepo } from '@/repositories/interfaces';
 import { Purchase, PurchaseItem, CreatePurchaseInput, CreatePurchaseItemInput } from '@/lib/purchases/types';
 import { calculateCostPerSqft } from '@/lib/purchases/calculations';
-import { createQuickProduct, QuickProductInput } from '@/server/actions/quickProductActions';
+import { createQuickProduct } from '@/server/actions/quickProductActions';
 
 export class PurchaseService {
   constructor(
@@ -25,8 +25,7 @@ export class PurchaseService {
             category: item.newProductCategory,
             providerId: defaultProvider, // Use actual provider
             area_sqft: item.newProductArea,
-            cost_sqft: item.amount / (item.qty * item.newProductArea), // Calculate cost per sq ft
-            sell_mode: 'SQFT' as const
+            cost_sqft: item.amount / (item.qty * item.newProductArea) // Calculate cost per sq ft
           };
 
           const newProduct = await createQuickProduct(productInput);

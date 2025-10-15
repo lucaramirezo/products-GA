@@ -71,7 +71,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
   if (patch.ink_enabled !== undefined) updateData.inkEnabled = patch.ink_enabled;
   if (patch.lam_enabled !== undefined) updateData.lamEnabled = patch.lam_enabled;
   if (patch.cut_enabled !== undefined) updateData.cutEnabled = patch.cut_enabled;
-  if (patch.sell_mode !== undefined) updateData.sellMode = patch.sell_mode;
   if (patch.sheets_count !== undefined) updateData.sheetsCount = patch.sheets_count;
   if (patch.active !== undefined) updateData.active = patch.active;
 
@@ -89,7 +88,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: 'inkEnabled',
     lam_enabled: 'lamEnabled',
     cut_enabled: 'cutEnabled',
-    sell_mode: 'sellMode',
     sheets_count: 'sheetsCount',
     active: 'active'
   };
@@ -139,7 +137,6 @@ export async function updateProduct(sku: string, patch: Partial<Product>): Promi
     ink_enabled: updatedProduct.inkEnabled,
     lam_enabled: updatedProduct.lamEnabled,
     cut_enabled: updatedProduct.cutEnabled,
-    sell_mode: updatedProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: updatedProduct.sheetsCount ?? undefined,
     active: updatedProduct.active
   };
@@ -173,7 +170,6 @@ export async function createProduct(product: Product): Promise<Product> {
     inkEnabled: product.ink_enabled,
     lamEnabled: product.lam_enabled,
     cutEnabled: product.cut_enabled,
-    sellMode: product.sell_mode,
     sheetsCount: product.sheets_count,
     active: product.active
   };
@@ -216,7 +212,6 @@ export async function createProduct(product: Product): Promise<Product> {
     ink_enabled: newProduct.inkEnabled,
     lam_enabled: newProduct.lamEnabled,
     cut_enabled: newProduct.cutEnabled,
-    sell_mode: newProduct.sellMode as 'SQFT' | 'SHEET',
     sheets_count: newProduct.sheetsCount ?? undefined,
     active: newProduct.active
   };

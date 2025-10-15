@@ -4,7 +4,7 @@ import { products, tiers, categoryRules, priceParams, providers, auditLog } from
 // Map DB rows (camel case fields in schema objects) to domain types expected by existing code.
 // Drizzle returns field names as defined in schema (camelCase) but DB columns are snake_case.
 
-interface ProductRow { sku:string; name:string; category:string; providerId:string; costSqft:string|number; areaSqft:string|number; activeTier:number; overrideMultiplier:string|number|null; overrideNumberOfLayers:number|null; inkEnabled:boolean; lamEnabled:boolean; cutEnabled:boolean; sellMode:'SQFT'|'SHEET'; sheetsCount:number|null; active:boolean; deletedAt: string|null; createdAt:string; updatedAt:string }
+interface ProductRow { sku:string; name:string; category:string; providerId:string; costSqft:string|number; areaSqft:string|number; activeTier:number; overrideMultiplier:string|number|null; overrideNumberOfLayers:number|null; inkEnabled:boolean; lamEnabled:boolean; cutEnabled:boolean; sheetsCount:number|null; active:boolean; deletedAt: string|null; createdAt:string; updatedAt:string }
 export function mapProduct(row: ProductRow): Product {
   return {
     sku: row.sku,
@@ -18,8 +18,7 @@ export function mapProduct(row: ProductRow): Product {
     override_number_of_layers: row.overrideNumberOfLayers ?? undefined,
     ink_enabled: row.inkEnabled ?? true,
     lam_enabled: row.lamEnabled ?? false,
-    cut_enabled: row.cutEnabled ?? false,
-    sell_mode: row.sellMode || 'SQFT',
+  cut_enabled: row.cutEnabled ?? false,
     sheets_count: row.sheetsCount ?? undefined,
     active: row.active,
     deleted_at: row.deletedAt,

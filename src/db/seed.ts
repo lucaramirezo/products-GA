@@ -39,12 +39,12 @@ async function main() {
 
     await tx.insert(products).values([
       // Product used by integration test parity
-      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
-      { sku: 'SKU1', name: 'Producto Demo 1', category: 'banner', providerId, costSqft: '2.5', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
-      { sku: 'SKU2', name: 'Producto Demo 2', category: 'banner', providerId, costSqft: '3.0', areaSqft: '1', activeTier: 2, sellMode: 'SQFT', inkEnabled: true, lamEnabled: true, cutEnabled: false, active: true },
-      { sku: 'SKU3', name: 'Producto Demo 3', category: 'vinyl', providerId, costSqft: '1.8', areaSqft: '1', activeTier: 1, sellMode: 'SQFT', inkEnabled: true, lamEnabled: false, cutEnabled: true, active: true },
+      { sku: 'SKU-001', name: 'Vinyl Banner 1m²', category: 'LargeFormat', providerId, costSqft: '2.1', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
+      { sku: 'SKU1', name: 'Producto Demo 1', category: 'banner', providerId, costSqft: '2.5', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: false, active: true },
+      { sku: 'SKU2', name: 'Producto Demo 2', category: 'banner', providerId, costSqft: '3.0', areaSqft: '1', activeTier: 2, inkEnabled: true, lamEnabled: true, cutEnabled: false, active: true },
+      { sku: 'SKU3', name: 'Producto Demo 3', category: 'vinyl', providerId, costSqft: '1.8', areaSqft: '1', activeTier: 1, inkEnabled: true, lamEnabled: false, cutEnabled: true, active: true },
       // Sheet product for purchases testing
-      { sku: 'SHEET-001', name: 'Adhesive Vinyl Sheet 24"x36"', category: 'vinyl', providerId, costSqft: '1.5', areaSqft: '6', activeTier: 1, sellMode: 'SHEET', sheetsCount: 1, inkEnabled: false, lamEnabled: false, cutEnabled: false, active: true }
+      { sku: 'SHEET-001', name: 'Adhesive Vinyl Sheet 24"x36"', category: 'vinyl', providerId, costSqft: '1.5', areaSqft: '6', activeTier: 1, sheetsCount: 1, inkEnabled: false, lamEnabled: false, cutEnabled: false, active: true }
     ]).onConflictDoNothing();
 
     // Sample purchase with both SQFT and SHEET units

@@ -10,7 +10,6 @@ export interface QuickProductInput {
   providerId?: string; // Make optional
   area_sqft?: number;
   cost_sqft?: number;
-  sell_mode?: 'SQFT' | 'SHEET';
 }
 
 /**
@@ -30,7 +29,6 @@ export async function createQuickProduct(input: QuickProductInput): Promise<Prod
       ink_enabled: true,
       lam_enabled: false,
       cut_enabled: false,
-      sell_mode: input.sell_mode || 'SQFT',
       active: true,
     };
 
